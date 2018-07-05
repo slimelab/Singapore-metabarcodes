@@ -24,7 +24,7 @@ Initialize. This file defines all the necessary libraries and variables
 
 # Aim
 
-* Assign and analyze eukaryotes in Singapore metabarcoding data
+* Assign and analyze eukaryotes for Singapore metabarcoding data
 
 # Analysis
 
@@ -34,10 +34,10 @@ Initialize. This file defines all the necessary libraries and variables
 
 ```{r}
 # Read the sample table
-  sample_table <- read_excel("../qiime/Singapore otu_table_w_tax.xlsx", sheet="samples")
+  sample_table <- read_excel("../qiime/Singapore otu_table_w_tax_0.97.xlsx", sheet="samples")
 
 # Read the otu table
-  otu_table <- read_excel("../qiime/Singapore otu_table_w_tax.xlsx", sheet="otu_table")
+  otu_table <- read_excel("../qiime/Singapore otu_table_w_tax_0.97.xlsx", sheet="otu_table")
 
 # Clean up the taxonomy
   otu_table <- otu_table %>% 
@@ -206,7 +206,7 @@ for (one_class in c("Mamiellophyceae", "Bacillariophyta")){
   p <- plot_bar(ps_subset, x="species", fill = "species", facet_grid = strait~moonsoon) +
     geom_bar(aes(color=species, fill=species), stat="identity", position="stack") +
     theme(axis.text.x = element_text(angle = 90, vjust=0.5, hjust=1)) +
-    ggtitle(one_division)
+    ggtitle(one_class)
   print(p)  
 }
 ```

@@ -11,3 +11,9 @@ osd
 *.html
 qiime/alpha_rarefaction_plots
 ~*
+*.fna
+*.Rdata
+*.rdb
+*.rdx
+*.png
+*_packages
