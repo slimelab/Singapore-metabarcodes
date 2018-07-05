@@ -1,0 +1,13 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+fasta
+fastq
+osd
+*.txt
+*.fna
+!qiime/otu_rep_97.fna
+*.html
+qiime/alpha_rarefaction_plots
+~*
