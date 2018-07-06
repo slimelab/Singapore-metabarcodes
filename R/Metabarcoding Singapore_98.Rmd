@@ -1,5 +1,5 @@
 ---
-title: "Metabarcoding Singapore"
+title: "Metabarcoding Singapore <br> Euks at 98%"
 author: "Daniel Vaulot, Adriana Lopes dos Santos"
 date: '`r format(Sys.time(), "%d %m %Y")`'
 header-includes:
@@ -24,20 +24,20 @@ Initialize. This file defines all the necessary libraries and variables
 
 # Aim
 
-* Assign and analyze eukaryotes for Singapore metabarcoding data
+* Assign and analyze eukaryotes for Singapore metabarcoding data (98%)
 
 # Analysis
 
-## Assignment of 97% OTUs based on PR2 database
+## Assignment of 98% OTUs based on PR2 database
 
 ### Read the data
 
 ```{r}
 # Read the sample table
-  sample_table <- read_excel("../qiime/Singapore otu_table_w_tax_0.97.xlsx", sheet="samples")
+  sample_table <- read_excel("../qiime/Singapore otu_table_w_tax_0.98.xlsx", sheet="samples")
 
 # Read the otu table
-  otu_table <- read_excel("../qiime/Singapore otu_table_w_tax_0.97.xlsx", sheet="otu_table")
+  otu_table <- read_excel("../qiime/Singapore otu_table_w_tax_0.98.xlsx", sheet="otu_table")
 
 # Clean up the taxonomy
   otu_table <- otu_table %>% 
@@ -45,7 +45,7 @@ Initialize. This file defines all the necessary libraries and variables
     separate(col=taxo_clean, into=str_c("taxo", c(1:7)), sep="; ")
 
 # Read the sequences
-  otu_sequences <- readAAStringSet("../qiime/otu_rep_97.fna")
+  otu_sequences <- readAAStringSet("../qiime/otu_rep_98.fna")
   otu_sequences.df <- data.frame (names=names(otu_sequences),sequence=as.character(otu_sequences))
 
 # Split the otu sequences name into the otu id given by qiime and the name of the representative sequence  
@@ -65,41 +65,44 @@ Initialize. This file defines all the necessary libraries and variables
  
  # Write the fasta file file
  otu_sequences_euk <- otu_table_euk %>% transmute(sequence=sequence, seq_name=otu_id)
- fasta_write(otu_sequences_euk, file_name="../qiime/otu_rep_97_euk.fasta", compress = FALSE, taxo_include = FALSE)
+ fasta_write(otu_sequences_euk, file_name="../qiime/otu_rep_98_euk.fasta", compress = FALSE, taxo_include = FALSE)
  
 ```
 ### Use dada2 to reassign to PR2
 
 ```{r, eval=FALSE}
- dada2_assign(seq_file_name="../qiime/otu_rep_97_euk.fasta")
+ dada2_assign(seq_file_name="../qiime/otu_rep_98_euk.fasta")
  
 ```
 
 ### Read the PR2 assignement and merge with initial otu table
 
 ```{r}
- otu_euk_pr2 <- read_tsv("../qiime/otu_rep_97_euk.dada2.taxo")
- otu_euk_pr2_boot <- read_tsv("../qiime/otu_rep_97_euk.dada2.boot") %>%
+ otu_euk_pr2 <- read_tsv("../qiime/otu_rep_98_euk.dada2.taxo")
+ otu_euk_pr2_boot <- read_tsv("../qiime/otu_rep_98_euk.dada2.boot") %>%
    rename_all(funs(str_c(.,"_boot"))) %>% 
    rename(seq_name = seq_name_boot)
  otu_euk_pr2 <- left_join(otu_euk_pr2, otu_euk_pr2_boot) %>% 
    rename(otu_id= seq_name)
  otu_table_euk_final <- left_join(otu_table_euk, otu_euk_pr2) %>% 
-   select(otu_id, otu_id_qiime,taxo1:taxo7, kingdom:species_boot,nseq:EC11.S24, otu_rep_seq, sequence)
+   select(otu_id, otu_id_qiime,taxo1:taxo7, kingdom:species_boot,nseq, STJ11.S23:PR06.S10, otu_rep_seq, sequence)
           
- write_tsv(otu_table_euk_final, "../qiime/otu_table_euk_final.tsv")
+ write_tsv(otu_table_euk_final, "../qiime/otu_table_98_euk_final.tsv")
 ```
 
 
 ## Phyloseq analysis
 
-Filter the euk data to remove the low bootstraps values and create a phyloseq file
+### Create phyloseq files after filtering the data
 
+Filter the euk data to remove the low bootstraps values (threshold : bootstrap > 90% at the supergroup level) and create a phyloseq file
+
+Note the bootstrap threshold had to be higher for 98% compared to 97% (90% vs 65%)
 ```{r}
-  otu_table_euk_final <- otu_table_euk_final %>% filter(supergroup_boot > 65)
+  otu_table_euk_final <- otu_table_euk_final %>% filter(supergroup_boot > 90)
   str_c("Number of euk otus : ", nrow(otu_table_euk_final))
 
-  otu_mat<- otu_table_euk_final %>%  select(otu=otu_id,BLOOM10.S22:EC11.S24 )
+  otu_mat<- otu_table_euk_final %>%  select(otu=otu_id,STJ11.S23:PR06.S10 )
   tax_mat<- otu_table_euk_final %>%  select(otu=otu_id,kingdom:species)
   samples_df <- sample_table %>%  rename (sample=sample_id)
   
@@ -160,6 +163,7 @@ Create a list for the auto and hetero phyloseq files
   ps_list <- list(ps=c(singa_photo, singa_hetero), title = c("Autotrophs", "Heterotrophs"))
 ```
 
+### Bar plot of classes per station for auto and hetero
 
 ```{r }
 
@@ -172,7 +176,8 @@ for (i in 1:2) {
 ```
 
 
-Compare by Straight, Site, Moonsoon
+### Compare by Straight, Site, Moonsoon
+
 ```{r}
 for (factor in c("strait", "site", "moonsoon")) {  
  for (i in 1:2) {
@@ -186,7 +191,7 @@ for (factor in c("strait", "site", "moonsoon")) {
 ```
 
 
-Check main genus different division of Autotrophs
+### Main genera for different division of Autotrophs
 
 ```{r }
 for (one_division in c("Chlorophyta", "Dinoflagellata", "Ochrophyta")){
@@ -198,7 +203,8 @@ for (one_division in c("Chlorophyta", "Dinoflagellata", "Ochrophyta")){
   print(p)  
 }
 ```
-Check main genus different species of Mamiellophyceae abd Diatoms
+
+### Main species of Mamiellophyceae and Diatoms
 
 ```{r }
 for (one_class in c("Mamiellophyceae", "Bacillariophyta")){
@@ -211,30 +217,55 @@ for (one_class in c("Mamiellophyceae", "Bacillariophyta")){
 }
 ```
 
+### Heatmaps
+
 ```{r}
 
 for (i in 1:2) {
 
   p <- plot_heatmap(ps_list$ps[[i]], method = "NMDS", distance = "bray", 
                taxa.label = "species",  taxa.order="division",
-               low="beige", high="red", na.value="beige", title=ps_list$title[[i]])
+               low="beige", high="red", na.value="beige", 
+               title=str_c(ps_list$title[[i]], " - Only abundant OTUs (> 10% in at least one sample"))
   print(p)
 }
+ 
 ```
 
-NMDS
+### NMDS
 
 ```{r}
-
+  singa.ord <- ordinate(singa.ps, "NMDS", "bray")
+  print(singa.ord)
+  
+  p <- plot_ordination(singa.ps, singa.ord, type="samples", color="moonsoon", 
+                  shape="strait", title="All euks OTUs") +
+       geom_point(size=3)
+  print(p)
+  
 for (i in 1:2) {
   
   singa.ord <- ordinate(ps_list$ps[[i]], "NMDS", "bray")
   print(singa.ord)
 
-  p <- plot_ordination(singa_photo, singa.ord, type="samples", color="moonsoon", 
-                  shape="strait", title=ps_list$title[[i]]) + geom_point(size=3)
+  p <- plot_ordination(ps_list$ps[[i]], singa.ord, type="samples", color="moonsoon", 
+                  shape="strait", title=str_c(ps_list$title[[i]], " - Only abundant OTUs (> 10% in at least one sample)")) +
+       geom_point(size=3)
   print(p)
+}
+```
 
+### Network analysis
+
+```{r fig.height=6, fig.width=10}
+
+for (i in 1:2) {
+
+  p <- plot_net(ps_list$ps[[i]], distance = "(A+B-2*J)/(A+B)", type = "taxa", 
+           maxdist = 0.4, color="class", point_label="genus") +
+       ggtitle(ps_list$title[[i]])
+
+  print(p)
 }
 
 ```

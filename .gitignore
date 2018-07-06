@@ -17,3 +17,4 @@ qiime/alpha_rarefaction_plots
 *.rdx
 *.png
 *_packages
+qiime/MDS.pdf
