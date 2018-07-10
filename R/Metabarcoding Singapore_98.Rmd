@@ -34,7 +34,8 @@ Initialize. This file defines all the necessary libraries and variables
 
 ```{r}
 # Read the sample table
-  sample_table <- read_excel("../qiime/Singapore otu_table_w_tax_0.98.xlsx", sheet="samples")
+  sample_table <- read_excel("../qiime/Singapore otu_table_w_tax_0.98.xlsx", sheet="samples") %>% 
+                  mutate(sample_label = str_c(strait,site_M,sprintf("%03d",day), sep="_"))
 
 # Read the otu table
   otu_table <- read_excel("../qiime/Singapore otu_table_w_tax_0.98.xlsx", sheet="otu_table")
@@ -134,14 +135,13 @@ Break up into photosynthetic and non-photosynthetic (Metazoa are removed)
   singa_photo <- subset_taxa(singa_euk, (division %in% c("Chlorophyta", "Dinoflagellata", "Cryptophyta", "Rhodophyta",
                                                             "Haptophyta", "Ochrophyta", "Cercozoa")) &
                                          !(class %in% c("Syndiniales", "Sarcomonadea")))
+  singa_photo
+  
+  
   singa_hetero <- subset_taxa(singa_euk,!(division %in% c("Chlorophyta", "Dinoflagellata", "Cryptophyta","Rhodophyta", 
                                                             "Haptophyta", "Ochrophyta", "Cercozoa", "Metazoa")) |
                                           (class %in% c("Syndiniales", "Sarcomonadea")))
-  
-  sprintf("Euk Photo - all")  
-  singa_photo
-  
-  sprintf("Euk Hetero - all")    
+ 
   singa_hetero
 ```
 
@@ -164,23 +164,25 @@ Remove taxa which are in low abundace (< 0.10 in any given sample) and normalize
 
 ```{r}
   contrib_min <- 0.1
+
+# Photo abundant
   singa_photo_abundant <- filter_taxa(singa_photo, function(x) sum(x > total_photo*contrib_min) > 0, TRUE)
-  singa_hetero_abundant <- filter_taxa(singa_hetero, function(x) sum(x > total_hetero*contrib_min) > 0, TRUE)
   
   total = median(sample_sums(singa_photo_abundant))
   sprintf("The number of reads used for normalization of abundant autotrophs is  %.0f", total)
   standf = function(x, t=total) (t * (x / sum(x)))
   singa_photo_abundant = transform_sample_counts(singa_photo_abundant, standf)
+ 
+  singa_photo_abundant
+  
+# Hetero abundant  
+  singa_hetero_abundant <- filter_taxa(singa_hetero, function(x) sum(x > total_hetero*contrib_min) > 0, TRUE)
   
   total = median(sample_sums(singa_hetero_abundant))
   sprintf("The number of reads used for normalization of abundant heterotrophs is  %.0f", total)
   standf = function(x, t=total) (t * (x / sum(x)))
   singa_hetero_abundant = transform_sample_counts(singa_hetero_abundant, standf)
 
-  sprintf("Euk Photo - abundant")  
-  singa_photo_abundant
-  
-  sprintf("Euk Hetero - abundant")    
   singa_hetero_abundant
   
   
@@ -214,9 +216,6 @@ Remove taxa which are in low abundace (< 0.10 in any given sample) and normalize
   samples = sample_data(samples_df)
   
   singa_prok <- phyloseq(OTU, TAX, samples)
-  
-  sprintf("Prok - all")
-  singa_prok
 ```
 
 Normalize number of reads in each sample using median sequencing depth.
@@ -226,6 +225,8 @@ Normalize number of reads in each sample using median sequencing depth.
   sprintf("The number of reads used for normalization of prokaryotes is  %.0f", total_prok)
   standf = function(x, t=total_prok) (t * (x / sum(x)))
   singa_prok= transform_sample_counts(singa_prok, standf)
+  
+  singa_prok
 
 ```
 Remove otus which are in low abundace (< 0.05 in any given sample) and normalize again
@@ -238,7 +239,6 @@ Remove otus which are in low abundace (< 0.05 in any given sample) and normalize
   standf = function(x, t=total) (t * (x / sum(x)))
   singa_prok_abundant= transform_sample_counts(singa_prok_abundant, standf)
   
-  sprintf("Prok - abundant")
   singa_prok_abundant
   
 ```
@@ -257,9 +257,10 @@ Remove otus which are in low abundace (< 0.05 in any given sample) and normalize
 ```{r }
 
 for (i in 1:3) {
-  p <- plot_bar(ps_list$ps[[i]], fill = "division") + 
+  p <- plot_bar(ps_list$ps[[i]], x="sample_label", fill = "division") + 
        geom_bar(aes(color=division, fill=division), stat="identity", position="stack") + 
-       ggtitle(str_c("Division level - ",ps_list$title[[i]]))
+       ggtitle(str_c("Division level - ",ps_list$title[[i]]))  +
+       theme(axis.text.x = element_text(angle = 90, vjust=0.5, hjust=1))
   print(p)
 }
 ```
@@ -271,14 +272,15 @@ Only consider the abundant taxa
 ```{r }
 
 for (i in 1:3) {
-  p <- plot_bar(ps_list_abundant$ps[[i]], fill = "class") + 
+  p <- plot_bar(ps_list_abundant$ps[[i]], x="sample_label", fill = "class") + 
        geom_bar(aes(color=class, fill=class), stat="identity", position="stack") + 
-       ggtitle(str_c("Class level - ",ps_list_abundant$title[[i]]))
+       ggtitle(str_c("Class level - ",ps_list_abundant$title[[i]]))  +
+       theme(axis.text.x = element_text(angle = 90, vjust=0.5, hjust=1))
   print(p)
 }
 ```
 
-### Compare by Straight, Site, Moonsoon
+### Compare by Straight, Site, Moonsoon (abundant OTUs only)
 
 ```{r}
 for (factor in c("strait", "site", "moonsoon")) {  
@@ -286,14 +288,15 @@ for (factor in c("strait", "site", "moonsoon")) {
   ps_aggregate <- merge_samples(ps_list_abundant$ps[[i]], factor)
   p <- plot_bar(ps_aggregate, fill = "division") + 
       geom_bar(aes(color=division, fill=division), stat="identity", position="stack") +
-      ggtitle(str_c(ps_list_abundant$title[[i]], " - ", factor))
+      ggtitle(str_c(ps_list_abundant$title[[i]], " - ", factor)) +
+      theme(axis.text.x = element_text(angle = 90, vjust=0.5, hjust=1))
   print(p)
  }
 }
 ```
 
 
-### Main genera for different division of EUkaryote Autotrophs
+### Main genera for different division of Eukaryotes (Autotrophs)
 
 ```{r }
 for (one_division in c("Chlorophyta", "Dinoflagellata", "Ochrophyta")){
@@ -306,7 +309,7 @@ for (one_division in c("Chlorophyta", "Dinoflagellata", "Ochrophyta")){
 }
 ```
 
-### Main species of Mamiellophyceae and Diatoms (Eukaryotes)
+### Main species of Mamiellophyceae and Diatoms (Eukaryotes - Autrotrophs)
 
 ```{r }
 for (one_class in c("Mamiellophyceae", "Bacillariophyta")){
@@ -319,7 +322,7 @@ for (one_class in c("Mamiellophyceae", "Bacillariophyta")){
 }
 ```
 
-### Heatmaps
+### Heatmaps (abundant OTUs)
 
 ```{r}
 
@@ -327,6 +330,7 @@ for (i in 1:2) {
 
   p <- plot_heatmap(ps_list_abundant$ps[[i]], method = "NMDS", distance = "bray", 
                taxa.label = "species",  taxa.order="division",
+               sample.label = "sample_label", sample.order="sample_label",
                low="beige", high="red", na.value="beige", 
                title=ps_list_abundant$title[[i]])
   print(p)
@@ -336,6 +340,7 @@ for (i in c(3)) {
 
   p <- plot_heatmap(ps_list_abundant$ps[[i]], method = "NMDS", distance = "bray", 
                taxa.label = "family",  taxa.order="division",
+               sample.label = "sample_label", sample.order="sample_label",
                low="beige", high="red", na.value="beige", 
                title=ps_list_abundant$title[[i]])
   print(p)
@@ -354,7 +359,8 @@ for (i in 1:3) {
 
   p <- plot_ordination(ps_list$ps[[i]], singa.ord, type="samples", color="moonsoon", 
                   shape="strait", title=ps_list$title[[i]]) +
-       geom_point(size=3)
+       geom_point(size=3) +
+       scale_colour_manual(values=c("yellow", "red","blue"))
 
   print(p)
 }
@@ -369,7 +375,8 @@ for (i in 1:3) {
 
   p <- plot_ordination(ps_list$ps[[i]], singa.ord, type="samples", color="moonsoon", 
                   shape="strait", title=ps_list_abundant$title[[i]]) +
-       geom_point(size=3)
+       geom_point(size=3)  +
+       scale_colour_manual(values=c("yellow", "red","blue"))
   print(p)
   
   p <- plot_ordination(ps_list$ps[[i]], singa.ord, type="taxa", color="division", 
