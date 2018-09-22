@@ -46,7 +46,7 @@ library("kableExtra")
 
 options(max.print="75")
   knitr::opts_chunk$set(fig.width=10, 
-                        fig.height=10, 
+                        fig.height=8, 
                         eval=TRUE, 
                         cache=TRUE,
                         echo=TRUE,

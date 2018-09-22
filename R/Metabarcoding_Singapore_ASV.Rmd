@@ -1,0 +1,507 @@
+---
+title: "Metabarcoding Singapore <br> ASV from Dada2"
+author: "Daniel Vaulot, Adriana Lopes dos Santos"
+date: '`r format(Sys.time(), "%d %m %Y")`'
+header-includes:
+   - \usepackage{color, fancyvrb}
+output:
+  pdf_document: 
+    toc: yes
+    toc_depth: 3
+    number_sections : yes
+  rmdformats::readthedown:
+    highlight: kate
+    toc_depth: 3
+    number_sections : yes    
+---
+
+
+
+# Initialize. 
+
+This file defines all the necessary libraries and variables
+
+```{r init, eval=TRUE, message=FALSE, warning=FALSE}
+  source('Metabarcoding Singapore_init.R', echo=FALSE)
+```
+
+# Aim
+
+* Assign and analyze eukaryotes for Singapore metabarcoding data (ASV assigned with dada2 as implemented on Mothur).  
+* Do some analyzes with the prokaryotes too...
+
+
+# Read the data
+## File names
+
+```{r}
+  full_path_data <- function(file_name) { str_c("../qiime/2018-09-06_dada2/", file_name)}
+
+  taxo_file <- full_path_data("taxonomy.tsv")
+  otu_file <- full_path_data("feature-table_unrarefied.tsv")
+  sequence_file <- full_path_data("ref_sequences_unrarefied.fasta")
+  
+  metadata_file <- "../metadata/Singapore_metadata.xlsx"
+  
+  sequence_file_euk <- full_path_data("ASV_unrarefied_euk.fasta")
+  dada2_taxo_file_euk <- full_path_data("ASV_unrarefied_euk.dada2.taxo")
+  dada2_boot_file_euk <- full_path_data("ASV_unrarefied_euk.dada2.boot")
+  otu_table_final_file <- full_path_data("ASV_final.tsv")
+  
+  blast_file <- full_path_data("ASV_unrarefied_euk.blast.tsv")  
+```
+
+
+## Read the files
+* The dada2 treatment has already removed the forward and reverse primers, so no need to remove them
+* Work with the unrarefied data
+
+```{r}
+# Read the sample and metadata tables
+  sample_table <- read_excel(metadata_file, sheet="samples", range="A1:D89") 
+  metadata_table  <- read_excel(metadata_file, sheet="metadata", na=c("ND", ""))
+  sample_table <- left_join(sample_table, metadata_table) %>% 
+                  mutate(sample_label = str_c(strait_label,location_label,
+                                              monsoon,sprintf("%03d",day_number), 
+                                              sep="_"))
+
+# Read the taxonomy table
+  taxo_table <- read_tsv(taxo_file)
+
+# Clean up the taxonomy
+  taxo_table <- taxo_table %>% 
+    mutate(taxo_clean = str_replace_all(Taxon, "D_[0-9]+__","")) %>% 
+    separate(col=taxo_clean, into=str_c("taxo", c(1:7)), sep=";") %>% 
+    rename(otu_name = `Feature ID`)
+  
+# Read the otu table
+  otu_table <- read_tsv(otu_file, skip=1) %>%  # Jump the first line
+    rename(otu_name = `#OTU ID`) %>% 
+    mutate(otu_id = str_c("otu_", sprintf("%04d",row_number())))
+
+# Read the sequences
+  otu_sequences <- readAAStringSet(sequence_file)
+  otu_sequences.df <- data.frame (otu_name=names(otu_sequences),sequence=as.character(otu_sequences))
+
+# Remove the primers - Not necessary because the primers have been removed  
+  # fwd_length = 20
+  # rev_length = 15
+  # otu_sequences.df <- otu_sequences.df %>% 
+  #   separate (col=names, into=c("otu_id_qiime", "otu_rep_seq"), sep=" ") %>%
+  #   mutate (sequence = str_sub(sequence, start=fwd_length+1, end = - rev_length - 1))
+
+  otu_table <- taxo_table %>%  
+    left_join(otu_table) %>% 
+    left_join(otu_sequences.df) %>% 
+    arrange(otu_id)
+  
+# Write a fasta file for blast with all taxonomy roups
+ # otu_sequences <- otu_table %>% transmute(sequence=sequence, seq_name=otu_id)
+ # fasta_write(otu_sequences, file_name="../qiime/otu_rep_98_all.fasta", compress = FALSE, taxo_include = FALSE)  
+  
+  
+```
+
+## Only keep the eukaryotes in the OTU file
+
+```{r}
+ otu_table_euk <- otu_table %>% filter(str_detect(Taxon, "Eukaryota"))
+
+ # Write the fasta file file
+ otu_sequences_euk <- otu_table_euk %>% transmute(sequence=sequence, seq_name=otu_id)
+ fasta_write(otu_sequences_euk, file_name=sequence_file_euk, 
+             compress = FALSE, taxo_include = FALSE)
+ 
+```
+# Assignment of eukaryotic ASVs based on PR2 database
+
+## Use dada2 to reassign to PR2
+
+```{r, eval=FALSE}
+ dada2_assign(seq_file_name=sequence_file_euk)
+ 
+```
+
+## Read the PR2 assignement and merge with initial otu table
+
+```{r}
+ otu_euk_pr2 <- read_tsv(dada2_taxo_file_euk)
+ otu_euk_pr2_boot <- read_tsv(dada2_boot_file_euk) %>%
+   rename_all(funs(str_c(.,"_boot"))) %>% 
+   rename(seq_name = seq_name_boot)
+ otu_euk_pr2 <- left_join(otu_euk_pr2, otu_euk_pr2_boot) %>% 
+   rename(otu_id= seq_name)
+ otu_table_final <- left_join(otu_table, otu_euk_pr2) %>% 
+   select(otu_id, otu_name,taxo1:taxo7, Taxon, kingdom:species_boot,matches("EC|PR|RM|SBW|STJ"),sequence)
+          
+ write_tsv(otu_table_final, otu_table_final_file, na = "")
+```
+# Process BLAST file
+
+BLAST is performed on Roscoff ABIMS server
+
+```{r, eval=FALSE}
+blast_18S_reformat(blast_file)
+```
+
+
+# Phyloseq analysis
+
+## Create phyloseq files for euk after filtering the data
+
+Filter the euk data to remove the low bootstraps values (threshold : bootstrap > 90% at the supergroup level) and create a phyloseq file
+
+Note the bootstrap threshold had to be higher for 98% compared to 97% (90% vs 65%)
+```{r warning=FALSE}
+  otu_table_euk_final <- otu_table_final %>% filter(supergroup_boot > 90)
+
+  otu_mat<- otu_table_euk_final %>%  select(otu=otu_id,matches("EC|PR|RM|SBW|STJ"),-species, -species_boot )
+  tax_mat<- otu_table_euk_final %>%  select(otu=otu_id,kingdom:species)
+  samples_df <- sample_table %>%  rename (sample=sample_id)
+  
+  row.names(otu_mat) <- otu_mat$otu
+  otu_mat <- otu_mat %>% select (-otu) 
+  row.names(tax_mat) <- tax_mat$otu
+  tax_mat <- tax_mat %>% select (-otu) 
+  row.names(samples_df) <- samples_df$sample
+  samples_df <- samples_df %>% select (-sample)
+  otu_mat <- as.matrix(otu_mat)
+  tax_mat <- as.matrix(tax_mat)
+  
+  OTU = otu_table(otu_mat, taxa_are_rows = TRUE)
+  TAX = tax_table(tax_mat)
+  samples = sample_data(samples_df)
+  
+  singa_euk <- phyloseq(OTU, TAX, samples)
+  singa_euk <- subset_samples(singa_euk, sequence_quality == "good")
+
+  cat("\nPhyloseq Eukaryotes \n========== \n")  
+  singa_euk
+```
+## Break up into photosynthetic and non-photosynthetic 
+* **Opisthokonta (Metazoa, Fungi) are removed**
+
+```{r}
+  singa_euk <- subset_taxa(singa_euk,!(supergroup %in% c("Opisthokonta")))
+
+  singa_photo <- subset_taxa(singa_euk, (division %in% c("Chlorophyta", "Cryptophyta", "Rhodophyta",
+                                                            "Haptophyta", "Ochrophyta")) |
+                                        ((division ==  "Dinoflagellata") & (class != "Syndiniales")) |
+                                        (class == "Filosa-Chlorarachnea"))
+  cat("\nPhyloseq Photosynthetic Eukaryotes \n========== \n") 
+  singa_photo
+  
+  
+  singa_hetero <- subset_taxa(singa_euk, !(division %in% c("Chlorophyta", "Cryptophyta", "Rhodophyta",
+                                                            "Haptophyta", "Ochrophyta")) &
+                                        !((division ==  "Dinoflagellata") & !(class == "Syndiniales")) &
+                                        !(class == "Filosa-Chlorarachnea"))
+  cat("\nPhyloseq Heterotrophic Eukaryotes \n========== \n") 
+  singa_hetero
+```
+
+## Create phyloseq files for proks
+
+```{r}
+  otu_table_prok <- otu_table %>% filter(taxo1 %in% c("Bacteria", "Archaea"))
+  
+  otu_mat<- otu_table_prok %>%  select(otu=otu_id,matches("EC|PR|RM|SBW|STJ") )
+  
+  tax_mat<- otu_table_prok %>%  select(otu=otu_id,taxo1:taxo7) %>% 
+    rename(kingdom=taxo1, supergroup=taxo2, division=taxo3, class=taxo4, order=taxo5, family=taxo6, genus=taxo7) %>% 
+    mutate(species=NA)
+  
+  samples_df <- sample_table %>%  rename (sample=sample_id)
+  
+  row.names(otu_mat) <- otu_mat$otu
+  otu_mat <- otu_mat %>% select (-otu) 
+  row.names(tax_mat) <- tax_mat$otu
+  tax_mat <- tax_mat %>% select (-otu) 
+  row.names(samples_df) <- samples_df$sample
+  samples_df <- samples_df %>% select (-sample)
+  otu_mat <- as.matrix(otu_mat)
+  tax_mat <- as.matrix(tax_mat)
+  
+  OTU = otu_table(otu_mat, taxa_are_rows = TRUE)
+  TAX = tax_table(tax_mat)
+  samples = sample_data(samples_df)
+  
+  singa_prok <- phyloseq(OTU, TAX, samples)
+  singa_prok <- subset_samples(singa_prok, sequence_quality == "good")
+  
+  cat("\nPhyloseq Prokaryotes \n========== \n") 
+  singa_hetero
+```
+
+## Normalize number of reads in each sample using median sequencing depth.
+* ! If there no cells do not transform, just set column to 0 
+`function(x, t=total_hetero) (if(sum(x) > 0){ t * (x / sum(x))} else {x})`
+
+
+```{r}
+
+# First define a function to normalize
+   
+ps_normalize_median <- function (ps, title) {
+  ps_median = median(sample_sums(ps))
+  cat(sprintf("\nThe median number of reads used for normalization of %s is  %.0f", title, ps_median))
+  normalize_median = function(x, t=ps_median) (if(sum(x) > 0){ t * (x / sum(x))} else {x})
+  ps = transform_sample_counts(ps, normalize_median)
+  cat(str_c("\nPhyloseq ",title, "\n========== \n") )
+  print(ps)
+}
+
+# Apply to all the phyloseq files
+  singa_euk = ps_normalize_median(singa_euk, "eukaryotes (auto+hetero)")
+  singa_photo = ps_normalize_median(singa_photo, "eukaryotes autotrophs")
+  singa_hetero = ps_normalize_median(singa_hetero, "eukaryotes heterotrophs")
+  singa_prok = ps_normalize_median(singa_prok, "prokaryotes")
+  
+```
+
+## Remove taxa which are in low abundance
+* Remove taxa that are < 0.10 (euks) and <0.05 (proks) in any given sample
+* Normalize again...
+
+```{r}
+
+ps_abundant <- function(ps,contrib_min=0.1, title){
+     total_per_sample <- max(sample_sums(ps))
+     ps <- filter_taxa(ps, function(x) sum(x > total_per_sample*contrib_min) > 0, TRUE)
+     ps <- ps_normalize_median(ps, title)
+}
+
+  cat("Remove taxa in low abundance \n\n")
+  singa_euk_abundant = ps_abundant(singa_euk,contrib_min=0.1, "eukaryotes (auto+hetero)")
+  singa_photo_abundant = ps_abundant(singa_photo,contrib_min=0.1, "eukaryotes autotrophs")
+  singa_hetero_abundant = ps_abundant(singa_hetero,contrib_min=0.1, "eukaryotes heterotrophs")
+  singa_prok_abundant = ps_abundant(singa_prok,contrib_min=0.05, "prokaryotes")
+
+```
+
+
+## Create a list for the auto and hetero phyloseq files
+
+```{r}
+  ps_list <- list(ps=c(singa_prok,  singa_euk, singa_photo ), 
+                  title = c( "Prokaryotes - all OTUs", 
+                             "Eukaryotes - Auto and Hetero - all OTUs", 
+                             "Eukaryotes - Autotrophs - all OTUs"))
+  ps_list_abundant <- list(ps=c( singa_prok_abundant, singa_euk_abundant, singa_photo_abundant), 
+                           title = c( "Prokaryotes - abundant OTUs (> 5%)", 
+                                      "Eukaryotes - Auto + Hetero - abundant OTUs (> 10%)",
+                                      "Eukaryotes - Autotrophs - abundant OTUs (> 10%)"))
+```
+
+
+## Bar plot of divisions per station
+
+
+Note: some stations are completely missing heterotrops (Only Opistokonta)
+
+```{r fig.height=15, fig.width=10}
+
+for (i in 1:3) {
+  p <- plot_bar(ps_list$ps[[i]], x="sample_label", fill = "division") + 
+       geom_bar(aes(color=division, fill=division), stat="identity", position="stack") + 
+       ggtitle(str_c("Division level - ",ps_list$title[[i]]))  +
+       theme(axis.text.y = element_text(size=10)) +
+       theme(axis.text.x = element_text(angle=0, hjust = 0.5)) +
+       coord_flip()
+  print(p)
+}
+```
+
+## Bar plot of class per station
+
+Only consider the abundant taxa
+
+```{r fig.height=15, fig.width=10}
+
+for (i in 1:3) {
+  p <- plot_bar(ps_list_abundant$ps[[i]], x="sample_label", fill = "class") + 
+       geom_bar(aes(color=class, fill=class), stat="identity", position="stack") + 
+       ggtitle(str_c("Class level - ",ps_list_abundant$title[[i]])) +
+       theme(axis.text.y = element_text(size=10))+
+       theme(axis.text.x = element_text(angle=0, hjust = 0.5)) +
+       coord_flip() 
+  print(p)
+}
+```
+
+## Compare by Straight, Site, Moonsoon (abundant OTUs only)
+
+```{r fig.height=4, fig.width=6, message=FALSE, warning=FALSE}
+for (factor in c("strait", "location", "monsoon")) {  
+ for (i in 1:3) {
+  ps_aggregate <- merge_samples(ps_list_abundant$ps[[i]], factor)
+  p <- plot_bar(ps_aggregate, fill = "division") + 
+      geom_col(aes(color=division, fill=division)) +
+      ggtitle(str_c(ps_list_abundant$title[[i]], " - ", factor)) +
+      theme(axis.text.x = element_text(angle = 90, vjust=0.5, hjust=1))
+  print(p)
+ }
+}
+```
+
+## Main taxa
+
+### Main genera for different division of Eukaryotes (Autotrophs)
+
+```{r fig.height=6, fig.width=8}
+for (one_division in c("Chlorophyta", "Dinoflagellata", "Ochrophyta")){
+  ps_subset <- subset_taxa(singa_photo_abundant, division %in% one_division)
+  p <- plot_bar(ps_subset, x="genus",  facet_grid = strait~monsoon) +
+    geom_col() +
+    theme(axis.text.x = element_text(angle = 90, vjust=0.5, hjust=1)) +
+    ggtitle(str_c(one_division," - Abundant OTUs")) +
+    coord_flip()
+  print(p)  
+}
+```
+
+### Main species of Mamiellophyceae and Diatoms (Eukaryotes - Autrotrophs)
+
+```{r fig.height=6, fig.width=8}
+for (one_class in c("Mamiellophyceae", "Bacillariophyta")){
+  ps_subset <- subset_taxa(singa_photo_abundant, class %in% one_class)
+  p <- plot_bar(ps_subset, x="species", facet_grid = strait~monsoon) +
+    geom_col() +
+    theme(axis.text.x = element_text(angle = 90, vjust=0.5, hjust=1)) +
+    ggtitle(str_c(one_class," - Abundant OTUs"))+
+    coord_flip()
+  print(p)  
+}
+```
+
+## Heatmaps (abundant OTUs)
+
+* Data are agglomated at the genus level. Use function `tax_glom`
+
+```{r fig.height=10, fig.width=10}
+
+for (i in c(1)) {
+  ps_heat <- tax_glom(ps_list_abundant$ps[[i]],taxrank = "family")
+  p <- plot_heatmap(ps_heat, method = "NMDS", distance = "bray", 
+               taxa.label = "family",  taxa.order="division",
+               sample.label = "sample_label", sample.order="sample_label",
+               low="beige", high="red", na.value="beige", 
+               title=ps_list_abundant$title[[i]])
+  print(p)
+}
+  
+
+for (i in 2:3) {
+  
+  ps_heat <- tax_glom(ps_list_abundant$ps[[i]],taxrank = "genus")
+  p <- plot_heatmap(ps_heat, method = "NMDS", distance = "bray", 
+               taxa.label = "genus",  taxa.order="division",
+               sample.label = "sample_label", sample.order="sample_label",
+               low="beige", high="red", na.value="beige", 
+               title=ps_list_abundant$title[[i]])
+  print(p)
+}
+
+
+```
+
+## NMDS
+
+
+
+Sample removed because they were pulling the NMDS
+* PR2X16XS21 it has a single eukaryote (diatom bloom )
+* RM13XS36 cause problem for bacteria
+* PR11XS25 cause problem for hetero euks
+* SBW11XS26 cause problem for hetero euks
+* SBW13XS37 cause problem for hetero euks
+* RM13XS36 cause problem for hetero euks
+
+
+Define function
+
+```{r}
+singa_msds <- function(ps_list) {
+    for (i in 1:3) {
+      ps_nmds <- ps_list$ps[[i]]
+      
+      # Remove samples with no reads
+      ps_nmds <- prune_samples(sample_sums(ps_nmds)>0, ps_nmds)
+      
+      # Remove samples that caused problems (1= prok, 2=euk, 3=euk auto)
+      if (i==1) {  ps_nmds <- prune_samples(!(sample_names(ps_nmds) %in% c("RM13XS36")), ps_nmds) } # Prokaryotes
+      if (i %in% c(2,3)) {  ps_nmds <- prune_samples(!(sample_names(ps_nmds) %in% c("PR2X16SXS21")), ps_nmds)} # Eukaryotes
+      if (i==4) {  ps_nmds <- prune_samples(!(sample_names(ps_nmds) %in% c("PR11XS25", "SBW11XS26", "SBW13XS37")), ps_nmds) } # Heterotrophs not used
+       
+      
+      
+      singa.ord <- ordinate(ps_nmds, "NMDS", "bray")
+      print(singa.ord)
+    
+      p <- plot_ordination(ps_nmds, singa.ord, type="samples", color="strait", 
+                      shape="monsoon", title=ps_list$title[[i]]) +
+           geom_point(size=5)  +
+           scale_color_manual(values=c("red", "green","blue")) +
+           scale_shape_manual(values = c(17,18,15,16))
+           theme_bw()
+    
+      print(p)
+      
+       p <- plot_ordination(ps_nmds, singa.ord, type="taxa", color="supergroup", 
+                  shape="supergroup", title=ps_list$title[[i]]) +
+       geom_point(size=3) +
+       theme_bw()
+  print(p)
+    }
+  }
+```
+
+### All OTUs 
+
+```{r, fig.height=8, fig.width=8}
+
+  singa_msds(ps_list)
+  
+```
+
+### Abundant OTUs
+```{r, fig.height=8, fig.width=8}
+  singa_msds(ps_list_abundant)
+
+```
+
+## Network analysis
+
+```{r fig.height=6, fig.width=10}
+
+for (i in 1:3) {
+  
+  ps_nmds <- ps_list_abundant$ps[[i]]
+  
+  # Remove samples with no reads
+  ps_nmds <- prune_samples(sample_sums(ps_nmds)>0, ps_nmds)
+  
+  # Remove samples that caused problems (1= prok, 2=euk, 3=euk auto)
+  if (i==1) {  ps_nmds <- prune_samples(!(sample_names(ps_nmds) %in% c("RM13XS36")), ps_nmds) } # Prokaryotes
+  if (i %in% c(2,3)) {  ps_nmds <- prune_samples(!(sample_names(ps_nmds) %in% c("PR2X16SXS21")), ps_nmds)} # Eukaryotes
+  if (i==4) {  ps_nmds <- prune_samples(!(sample_names(ps_nmds) %in% c("PR11XS25", "SBW11XS26", "SBW13XS37")), ps_nmds) } # Heterotrophs not used
+
+  if (i > 1) {
+  p <- plot_net(ps_nmds, distance = "(A+B-2*J)/(A+B)", type = "taxa", 
+           maxdist = 0.4, color="class", point_label="genus") +
+       ggtitle(ps_list_abundant$title[[i]])
+  }
+
+  else {
+  p <- plot_net(ps_nmds, distance = "(A+B-2*J)/(A+B)", type = "taxa", 
+           maxdist = 0.4, color="class", point_label="family") +
+       ggtitle(ps_list_abundant$title[[i]])
+  }
+
+  print(p)
+}
+
+```
+
+
+

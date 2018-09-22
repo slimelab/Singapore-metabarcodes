@@ -269,3 +269,11 @@ for (i in 1:2) {
 
 ```
 
+## BLAST analysis
+
+Reformat the BLAST output file
+
+```{r}
+  blast_18S_reformat("../qiime/otu_rep_98_all.blast.tsv")
+```
+
