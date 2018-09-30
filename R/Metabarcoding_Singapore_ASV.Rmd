@@ -44,6 +44,8 @@ This file defines all the necessary libraries and variables
   metadata_file <- "../metadata/Singapore_metadata.xlsx"
   
   sequence_file_euk <- full_path_data("ASV_unrarefied_euk.fasta")
+  sequence_file_mamiello <- full_path_data("ASV_Mamiello.fasta")
+  
   dada2_taxo_file_euk <- full_path_data("ASV_unrarefied_euk.dada2.taxo")
   dada2_boot_file_euk <- full_path_data("ASV_unrarefied_euk.dada2.boot")
   otu_table_final_file <- full_path_data("ASV_final.tsv")
@@ -56,10 +58,15 @@ This file defines all the necessary libraries and variables
 * The dada2 treatment has already removed the forward and reverse primers, so no need to remove them
 * Work with the unrarefied data
 
+
 ```{r}
 # Read the sample and metadata tables
   sample_table <- read_excel(metadata_file, sheet="samples", range="A1:D89") 
+
   metadata_table  <- read_excel(metadata_file, sheet="metadata", na=c("ND", ""))
+  
+  station_table  <- read_excel(metadata_file, sheet="stations", na=c("ND", ""))
+
   sample_table <- left_join(sample_table, metadata_table) %>% 
                   mutate(sample_label = str_c(strait_label,location_label,
                                               monsoon,sprintf("%03d",day_number), 
@@ -113,6 +120,7 @@ This file defines all the necessary libraries and variables
              compress = FALSE, taxo_include = FALSE)
  
 ```
+
 # Assignment of eukaryotic ASVs based on PR2 database
 
 ## Use dada2 to reassign to PR2
@@ -136,12 +144,48 @@ This file defines all the necessary libraries and variables
           
  write_tsv(otu_table_final, otu_table_final_file, na = "")
 ```
+
+## Export fasta file with taxonomy for Mamiellophyceae
+
+```{r}
+  otu_mamiello <- otu_table_final %>% 
+    filter(class == "Mamiellophyceae") %>% 
+    select(sequence=sequence, seq_name=otu_id, supergroup:species)
+ fasta_write(otu_mamiello, file_name=sequence_file_mamiello, 
+             compress = FALSE, taxo_include = TRUE)
+
+```
+
+
 # Process BLAST file
 
 BLAST is performed on Roscoff ABIMS server
 
 ```{r, eval=FALSE}
 blast_18S_reformat(blast_file)
+```
+
+
+# Map
+Use leaflet
+
+```{r eval=TRUE, fig.height=10, fig.width=10}
+
+  lng_center = mean(station_table$longitude)
+  lat_center = mean(station_table$latitude)
+
+  map <- leaflet(width = 1000, height = 1000) %>%
+    addTiles() %>% 
+    setView(lng=lng_center, lat=lat_center, zoom=11) %>% 
+    addCircleMarkers(data = station_table, lat = ~ latitude, lng = ~ longitude, 
+                     radius = 5,
+               label = ~ location, 
+               labelOptions = labelOptions(textsize = "10px", noHide = T),
+               clusterOptions = markerClusterOptions()) 
+
+  map
+
+  
 ```
 
 
@@ -420,11 +464,13 @@ for (one_class in c("Mamiellophyceae", "Dinophyceae", "Bacillariophyta")){
 }
 ```
 
-## Heatmaps (abundant OTUs)
+## Heatmaps
 
-* Data are agglomated at the genus level. Use function `tax_glom`
+### Abundant OTUs
 
-```{r hetmaps, fig.height=10, fig.width=10}
+* Data are agglomarated at the genus level. Use function `tax_glom`
+
+```{r heatmaps, fig.height=10, fig.width=10}
 
 for (i in c(1)) {
   ps_heat <- tax_glom(ps_list_abundant$ps[[i]],taxrank = "family")
@@ -450,6 +496,47 @@ for (i in 2:3) {
 
 
 ```
+
+### Chlorophyta at species level
+All ASVs considered (not only abundant)
+
+```{r heatmap-chlorophyta, fig.height=10, fig.width=15}
+
+  ps_heat <- subset_taxa(ps_photo, division == "Chlorophyta")
+  
+  ps_heat <- tax_glom(ps_heat,taxrank = "species")
+
+  p <- plot_heatmap(ps_heat, method = "NMDS", distance = "bray", 
+               taxa.label = "species",  taxa.order="species",
+               sample.label = "sample_label", sample.order="sample_label",
+               low="beige", high="red", na.value="beige",trans = scales::log10_trans(), 
+               title="Mamiellophyceae in Singapore")
+  print(p)
+  
+
+```
+
+### Mamiello (Only Bathy, Ostreo and Micromonas) at genus level
+All ASVs considered (not only abundant)
+
+```{r heatmap_mamiello, fig.height=4, fig.width=10}
+
+  ps_heat <- subset_taxa(ps_photo, genus %in% c("Ostreococcus", "Bathycoccus", "Micromonas"))
+  
+  ps_heat <- tax_glom(ps_heat,taxrank = "genus")
+
+  p <- plot_heatmap(ps_heat, method = "NMDS", distance = "bray", 
+               taxa.label = "genus",  taxa.order="genus",
+               sample.label = "sample_label", sample.order="sample_label",
+               low="beige", high="red", na.value="beige",trans = scales::log_trans(10), 
+               title="Mamiellophyceae in Singapore")
+  print(p)
+  
+
+```
+
+
+
 
 ## NMDS
 

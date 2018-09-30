@@ -1,17 +1,17 @@
 ---
-title: "Singapore Metabarcodes - Eukaryotes"
+title: "Singapore Metabarcodes (Singkaryotes) - Eukaryotes"
 author: "Daniel Vaulot, Adriana Lopes"
 date: '`r format(Sys.time(), "%d %m %Y")`'
-output: 
+output:
+  bookdown::html_document2:
+    number_sections: TRUE
+    fig_caption: TRUE
+    toc: false
   bookdown::pdf_document2:
     number_sections: TRUE
     fig_caption: TRUE
     toc: false
     toc_depth: 1
-  bookdown::html_document2:
-    number_sections: TRUE
-    fig_caption: TRUE
-    toc: false
 ---
 
 
@@ -20,10 +20,13 @@ knitr::opts_chunk$set(echo = FALSE)
 knitr::opts_chunk$set(fig.pos = 'h')
 ```
 
-# To be done
+# To do
 * Treemap comparing overall composition of Johor vs Singapore (better than the bargraphs)
 * Regroup Singapore and Raffles Marina for the barplots (Figure \@ref(fig:treemap))
 * Do the plot of the different species as a function of the monsoon  (Figure \@ref(fig:mamiello) and following)
+* Do heatmaps per group (Chloro, diatoms, dinos)
+
+
 
 # Methodology
 * For assignation with Wang assigner, only ASVs with bootstrap at super group level taked into account
@@ -38,6 +41,13 @@ knitr::opts_chunk$set(fig.pos = 'h')
 
 # Taxonomic composition
 
+* Dinoflagellates are dominating followed by diatoms  (Figure \@ref(fig:treemap))
+* Among the key genera/species there are clear differences between Johor and Singapore (Raffles should merged with Singapore probably for this kind of comparison)
+    * Dinos  (Figure \@ref(fig:dinos)): *Gyrodinium fusiforme* (Johor), *Gyrodinium gutrula*; *Woloszeunskia halophila* (Johor), *Karlodinium veneficum* (Singapore)
+    * Diatoms  (Figure \@ref(fig:diatoms)): Most diatoms are on the Johor side except for *Leptocylindrus*, *Chaetoceros* (endosymbiont), *Cyclotella* (Johor), *Carataulina* (Johor), *Thalassiosira*, *Shionodiscus*
+    * Chlorophyta  (Figure \@ref(fig:chlorophyta),  \@ref(fig:mamiello), \@ref(fig:heatmap-chlorophyta)): *Nanochloris* (*Picochlorum*, mostly in Johor), *Micromonas* clade A.ABC.1-2 (M. commoda, mostly Singapore), *Micromonas* clade lagoons (in fact we call it warm now, mostly Singapore), *Ostreococcus* clade A (*lucimarinus*) and *tauri*
+    * Crypto   (Figure \@ref(fig:heatmap)): *Geminigera* (Singapore)
+
 ```{r treemap,  fig.cap="Overall euk composition",  fig.align = "center", out.width ="50%"}
  knitr::include_graphics("Metabarcoding_Singapore_ASV_files/figure-html/treemap-1.png", dpi=72)
 ```
@@ -47,8 +57,14 @@ knitr::opts_chunk$set(fig.pos = 'h')
 ```
 
 ```{r heatmap, fig.cap="Heatmap for major Eukaryote genera",  fig.align = "center", out.width ="100%"}
- knitr::include_graphics("Metabarcoding_Singapore_ASV_files/figure-html/hetmaps-2.png", dpi=72)
+ knitr::include_graphics("Metabarcoding_Singapore_ASV_files/figure-html/heatmaps-2.png", dpi=72)
 ```
+
+
+```{r heatmap-chlorophyta, fig.cap="Heatmap for Chlorophyta species",  fig.align = "center", out.width ="100%"}
+ knitr::include_graphics("Metabarcoding_Singapore_ASV_files/figure-html/heatmap-chlorophyta-1.png", dpi=72)
+```
+
 
 ```{r chlorophyta, fig.cap="Localization of major Chlorophyta genera",  fig.align = "center", out.width ="80%"}
  knitr::include_graphics("Metabarcoding_Singapore_ASV_files/figure-html/bar_plot_genera-1.png", dpi=72)
@@ -66,17 +82,15 @@ knitr::opts_chunk$set(fig.pos = 'h')
  knitr::include_graphics("Metabarcoding_Singapore_ASV_files/figure-html/bar_plot_species-3.png", dpi=72)
 ```
 
-* Dinoflagellates are dominating followed by diatoms  (Figure \@ref(fig:treemap))
-* Among the key genera/species there are clear differences between Johor and Singapore (Raffles should merged with Singapore probably for this kind of comparison)
-    * Dinos  (Figure \@ref(fig:dinos)): *Gyrodinium fusiforme* (Johor), *Gyrodinium gutrula*; *Woloszeunskia halophila* (Johor), *Karlodinium veneficum* (Singapore)
-    * Diatoms  (Figure \@ref(fig:diatoms)): Most diatoms are on the Johor side except for *Leptocylindrus*, *Chaetoceros* (endosymbiont), *Cyclotella* (Johor), *Carataulina* (Johor), *Thalassiosira*, *Shionodiscus*
-    * Chlorophyta  (Figure \@ref(fig:chlorophyta) and  \@ref(fig:mamiello)): *Nanochloris* (*Picochlorum*, mostly in Johor), *Micromonas* clade A.ABC.1-2 (M. commoda, mostly Singapore), *Micromonas* clade lagoons (in fact we call it warm now, mostly Singapore), *Ostreococcus* clade A (*lucimarinus*, mostly)
-    * Crypto   (Figure \@ref(fig:heatmap)): *Geminigera* (Singapore)
 
-* It is surprising that we do not find any Ochrophyta besides the diatoms : no Pelago, no Dictyo is it a problem with the primers ?
-* For the Mamiellophyceae, necessary to align with Margot V4 alignements to check exactly the signatures.
 
 # Effect of different factors on eukaryote composition
+
+
+* Radiolaria, Cryptophyta, Ciliophora, Cercozoa only found in Singapore strait and Raffles (Figure \@ref(fig:effect-strait))
+* Monsoon has less effect on the overall composition... (Figure \@ref(fig:effect-monsoon))
+
+Query: should we do just on the Photosynthetic eukaryotes or all eukaryotes ?
 
 ```{r effect-strait, fig.cap="Effect of strait on overall eukaryote composition",  fig.align = "center", out.width ="50%", fig.show = 'hold'}
  knitr::include_graphics("Metabarcoding_Singapore_ASV_files/figure-html/bar_plot_factors-2.png", dpi=72)
@@ -88,12 +102,10 @@ knitr::opts_chunk$set(fig.pos = 'h')
  knitr::include_graphics("Metabarcoding_Singapore_ASV_files/figure-html/bar_plot_factors-8.png", dpi=72)
 ```
 
-* Radiolaria, Cryptophyta, Ciliophora, Cercozoa only found in Singapore strait and Raffles (Figure \@ref(fig:effect-strait))
-* Monsoon has less effect on the overall composition... (Figure \@ref(fig:effect-monsoon))
-
-Query: should we do just on the Photosynthetic eukaryotes or all eukaryotes ?
 
 # NMDS
+* The strait seems to be most discriminant factor (Figure \@ref(fig:nmds-prok)).  
+* However it is interesting that for eukaryotes (Figure \@ref(fig:nmds-euk)) Raffles Marina seems to be clustering with Singapore straight rather than Johor most of the time while for prokaryotes (Figure \@ref(fig:nmds-prok)), Raffles is clearly in between.  *Probably an interesting point to discuss.*
 
 ```{r nmds-prok, fig.cap="NMDS - Prokaryotes",  fig.align = "center", out.width ="80%"}
  knitr::include_graphics("Metabarcoding_Singapore_ASV_files/figure-html/nmds_all-1.png", dpi=72)
@@ -106,8 +118,44 @@ Query: should we do just on the Photosynthetic eukaryotes or all eukaryotes ?
 ```{r nmds-photo, fig.cap="NMDS - Photosynthetic  eukaryotes",  fig.align = "center", out.width ="80%"}
  knitr::include_graphics("Metabarcoding_Singapore_ASV_files/figure-html/nmds_all-5.png", dpi=72)
 ```
-* The strait seems to be most discriminant factor (Figure \@ref(fig:nmds-prok)).  
-* However it is interesting that for eukaryotes (Figure \@ref(fig:nmds-euk)) Raffles Marina seems to be clustering with Singapore straight rather than Johor most of the time while for prokaryotes (Figure \@ref(fig:nmds-prok)), Raffles is clearly in between.  Probably an interesting point to discuss.
 
+
+# Comparison with OSD
+
+* OSD V4 while Singkaryotes amplicon is more upstream.  There is no overlap between the two regions so for Mamiellophyceae the comparison is difficult with the new clades defined by Margot (e.g. clade E for *Ostreococcus*)
+
+## Mamiellophyceae
+* Investigate in more details the Mamiellophyceae based on master alignement (clades). Check in particular whether we have Ostreo lucimarinus or Ostreo claude B
+
+### OSD
+
+Species/clades in **bold** are found in both OSD and Singkaryotes
+
+Species	Mamiello %  
+**Micromonas commoda AB**	 36.33  
+Bathycoccus prasinos	 10.20   
+Ostreococcus clade B	 9.90   
+**Micromonas clade B warm I**	 5.31   
+**Micromonas clade B warm II**	 4.80*  
+Ostreococcus clade E	 3.62   
+
+### Singkaryote data set
+
+**Micromonas commoda AB**  
+**Micromonas clade B warm**  
+Ostreo lucimarinus  
+Mantoniella squamata  
+
+## Ochrophyta
+
+Seems coherent  
+* **Singkaryote**, Diatoms (super dominant), Chrysophyceae, Raphidophyceae  
+* **OSD**: Diatoms are also dominant follwoed by Chrysophyceae and Raphodophyceae  
+
+## Haptophyta
+
+Seems coherent 
+* **Singkaryote**, Chrysochromulina, Emiliana, Haptolina, Phaeocystis  
+* **OSD** : Chrysochromulina, Phaeocystis, Haptolina, Emiliana  
 
 

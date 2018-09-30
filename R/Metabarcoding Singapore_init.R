@@ -13,6 +13,7 @@
   library("tibble")
 
   library("dvutils")
+  library("leaflet")
 
 # Libraries dvutils and pr2database -------------------------------------------------------
 
