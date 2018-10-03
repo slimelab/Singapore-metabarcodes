@@ -18,3 +18,26 @@ qiime/alpha_rarefaction_plots
 *.png
 *_packages
 qiime/MDS.pdf
+qiime/otu_table_98_final.tsv
+*.pdf
+*.qzv
+*.biom
+*.docx
+qiime/2018-07-03 otu 0.98/otu_rep_98_all.blast.tsv
+qiime/2018-07-03 otu 0.97/otu_rep_97_euk.fasta
+qiime/2018-07-03 otu 0.97/otu_table_97_euk_final.tsv
+qiime/2018-07-03 otu 0.98/otu_rep_98_all.blast_summary.tsv
+qiime/2018-07-03 otu 0.98/otu_rep_98_all.fasta
+qiime/2018-07-03 otu 0.98/otu_rep_98_all.blast_pr2.tsv
+qiime/2018-07-03 otu 0.98/otu_rep_98_euk.fasta
+qiime/2018-07-03 otu 0.98/otu_table_98_euk_final.tsv
+qiime/2018-09-06_dada2/ASV_final.tsv
+qiime/2018-07-03 otu 0.98/otu_table_98_final.tsv
+qiime/2018-09-06_dada2/ASV_Mamiello.fasta
+qiime/2018-09-06_dada2/ASV_unrarefied_euk.blast.tsv
+qiime/2018-09-06_dada2/ASV_unrarefied_euk.blast_pr2.tsv
+qiime/2018-09-06_dada2/ASV_unrarefied_euk.blast_summary.tsv
+qiime/2018-09-06_dada2/otu_table_high_conf_w_tax.xls
+qiime/2018-09-06_dada2/ref_sequences_rarefied.fasta
+README.md
+metadata/monsoon_metadata.csv
