@@ -5,6 +5,8 @@
   library("ShortRead") # to read fastq
   
   library("ggplot2")
+  library("viridis")
+
   library("stringr")
   library("dplyr")
   library("tidyr")

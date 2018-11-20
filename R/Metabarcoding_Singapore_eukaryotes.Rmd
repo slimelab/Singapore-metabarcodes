@@ -21,10 +21,15 @@ knitr::opts_chunk$set(fig.pos = 'h')
 ```
 
 # To do
+## Urgent
+* Re-assign Mamiellophyceae with updated PR2
+* Plot ratio of auto/total euks or auto/hetero
+
+## Other
 * Treemap comparing overall composition of Johor vs Singapore (better than the bargraphs)
 * Regroup Singapore and Raffles Marina for the barplots (Figure \@ref(fig:treemap))
-* Do the plot of the different species as a function of the monsoon  (Figure \@ref(fig:mamiello) and following)
 * Do heatmaps per group (Chloro, diatoms, dinos)
+* Classify 16S plastid using PhytoRef
 
 
 
@@ -34,6 +39,17 @@ knitr::opts_chunk$set(fig.pos = 'h')
 * Abundant" OTUs are more than 10% in at least one sample
 * Some samples for which the quality of sequencing was bad have been removed (Caroline list)
 * Samples have been normalized to the medium number of reads for the group considered (e.g. for all eukaryotes or for all photosynthetic eukaryotes)
+
+
+\clearpage
+
+
+# Environmental data
+
+```{r salinity,  fig.cap="Salinity variation at the different stations with effect of monsoon",  fig.align = "center", out.width ="80%"}
+ knitr::include_graphics("Metabarcoding_Singapore_ASV_files/figure-html/salinity_per_station-1.png", dpi=72)
+```
+\clearpage
 
 # Basic statistics
 * 663 ASVs of which 267 are autotrophs
@@ -66,23 +82,23 @@ knitr::opts_chunk$set(fig.pos = 'h')
 ```
 
 
-```{r chlorophyta, fig.cap="Localization of major Chlorophyta genera",  fig.align = "center", out.width ="80%"}
+```{r chlorophyta, fig.cap="Localization of major Chlorophyta genera",  fig.align = "center", out.width ="50%"}
  knitr::include_graphics("Metabarcoding_Singapore_ASV_files/figure-html/bar_plot_genera-1.png", dpi=72)
 ```
 
-```{r mamiello, fig.cap="Localization of major Mamiellophyceae species",  fig.align = "center", out.width ="80%"}
+```{r mamiello, fig.cap="Localization of major Mamiellophyceae species",  fig.align = "center", out.width ="50%"}
  knitr::include_graphics("Metabarcoding_Singapore_ASV_files/figure-html/bar_plot_species-1.png", dpi=72)
 ```
 
-```{r dinos, fig.cap="Localization of major Dinophyceae species",  fig.align = "center", out.width ="80%"}
+```{r dinos, fig.cap="Localization of major Dinophyceae species",  fig.align = "center", out.width ="50%"}
  knitr::include_graphics("Metabarcoding_Singapore_ASV_files/figure-html/bar_plot_species-2.png", dpi=72)
 ```
 
-```{r diatoms, fig.cap="Localization of major diatoms species",  fig.align = "center", out.width ="80%"}
+```{r diatoms, fig.cap="Localization of major diatoms species",  fig.align = "center", out.width ="50%"}
  knitr::include_graphics("Metabarcoding_Singapore_ASV_files/figure-html/bar_plot_species-3.png", dpi=72)
 ```
 
-
+\clearpage
 
 # Effect of different factors on eukaryote composition
 
@@ -92,16 +108,17 @@ knitr::opts_chunk$set(fig.pos = 'h')
 
 Query: should we do just on the Photosynthetic eukaryotes or all eukaryotes ?
 
-```{r effect-strait, fig.cap="Effect of strait on overall eukaryote composition",  fig.align = "center", out.width ="50%", fig.show = 'hold'}
+```{r effect-strait, fig.cap="Effect of strait on overall eukaryote composition",  fig.align = "center", out.width ="40%", fig.show = 'hold'}
  knitr::include_graphics("Metabarcoding_Singapore_ASV_files/figure-html/bar_plot_factors-2.png", dpi=72)
 ```
-```{r effect-station, fig.cap="Effect of station on overall eukaryote composition",  fig.align = "center", out.width ="50%"}
+```{r effect-station, fig.cap="Effect of station on overall eukaryote composition",  fig.align = "center", out.width ="40%"}
  knitr::include_graphics("Metabarcoding_Singapore_ASV_files/figure-html/bar_plot_factors-5.png", dpi=72)
 ```
-```{r effect-monsoon, fig.cap="Effect of monsoon on overall eukaryote composition",  fig.align = "center", out.width ="50%"}
+```{r effect-monsoon, fig.cap="Effect of monsoon on overall eukaryote composition",  fig.align = "center", out.width ="40%"}
  knitr::include_graphics("Metabarcoding_Singapore_ASV_files/figure-html/bar_plot_factors-8.png", dpi=72)
 ```
 
+\clearpage
 
 # NMDS
 * The strait seems to be most discriminant factor (Figure \@ref(fig:nmds-prok)).  
@@ -119,6 +136,7 @@ Query: should we do just on the Photosynthetic eukaryotes or all eukaryotes ?
  knitr::include_graphics("Metabarcoding_Singapore_ASV_files/figure-html/nmds_all-5.png", dpi=72)
 ```
 
+\clearpage
 
 # Comparison with OSD
 
@@ -131,30 +149,28 @@ Query: should we do just on the Photosynthetic eukaryotes or all eukaryotes ?
 
 Species/clades in **bold** are found in both OSD and Singkaryotes
 
-Species	Mamiello %  
-**Micromonas commoda AB**	 36.33  
-Bathycoccus prasinos	 10.20   
-Ostreococcus clade B	 9.90   
-**Micromonas clade B warm I**	 5.31   
-**Micromonas clade B warm II**	 4.80*  
-Ostreococcus clade E	 3.62   
+Species	Mamiello | %  
+--- | ---
+**Micromonas commoda AB** |	 36.33  
+Bathycoccus prasinos |	 10.20   
+Ostreococcus clade B |	 9.90   
+**Micromonas clade B warm I** |	 5.31   
+**Micromonas clade B warm II** |	 4.80  
+Ostreococcus clade E |	 3.62   
 
-### Singkaryote data set
-
+### Singkaryote data set  
 **Micromonas commoda AB**  
 **Micromonas clade B warm**  
 Ostreo lucimarinus  
 Mantoniella squamata  
 
-## Ochrophyta
-
-Seems coherent  
+## Ochrophyta   
+Seems coherent    
 * **Singkaryote**, Diatoms (super dominant), Chrysophyceae, Raphidophyceae  
 * **OSD**: Diatoms are also dominant follwoed by Chrysophyceae and Raphodophyceae  
 
-## Haptophyta
-
-Seems coherent 
+## Haptophyta   
+Seems coherent   
 * **Singkaryote**, Chrysochromulina, Emiliana, Haptolina, Phaeocystis  
 * **OSD** : Chrysochromulina, Phaeocystis, Haptolina, Emiliana  
 

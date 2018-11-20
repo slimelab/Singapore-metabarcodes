@@ -188,6 +188,83 @@ Use leaflet
   
 ```
 
+# Environmental data
+
+## Per station
+### Temp
+```{r temp_per_station, fig.height=10, fig.width=8}
+ p <- ggplot(filter(metadata_table, location_label != "BL")) + 
+  geom_line(aes(x=date,y=Temperature), na.rm=TRUE) +
+  geom_point(aes(x=date,y=Temperature, color=monsoon), size=5) +
+  facet_grid(rows = vars(location)) +
+  ylim(26,34) +
+  xlim(as.POSIXct(as.Date(c("2017-01-01","2019-01-01" )))) + 
+  geom_vline(xintercept = as.POSIXct(as.Date(c("2017-01-01","2018-01-01", "2019-01-01")))) +
+  scale_color_viridis(discrete=TRUE) 
+ p
+ 
+
+```
+### Salinity
+```{r salinity_per_station, fig.height=10, fig.width=8}
+ p <- ggplot(filter(metadata_table, location_label != "BL")) + 
+  geom_line(aes(x=date,y=Salinity), na.rm=TRUE) +
+  geom_point(aes(x=date,y=Salinity, color=monsoon), size=5) +
+  facet_grid(rows = vars(location)) +
+  ylim(15,35) +
+  xlim(as.POSIXct(as.Date(c("2017-01-01","2019-01-01" )))) + 
+  geom_vline(xintercept = as.POSIXct(as.Date(c("2017-01-01","2018-01-01", "2019-01-01")))) +
+  scale_color_viridis(discrete=TRUE) 
+ p
+ 
+
+```
+
+### Chlorophyll
+
+```{r chl_per_station, fig.height=10, fig.width=8}
+ p <- ggplot(filter(metadata_table, location_label != "BL")) + 
+  geom_line(aes(x=date,y=Chl), na.rm=TRUE) +
+  geom_point(aes(x=date,y=Chl, color=monsoon), size=5) +
+  facet_grid(rows = vars(location)) +
+  xlim(as.POSIXct(as.Date(c("2017-01-01","2019-01-01" )))) + 
+  geom_vline(xintercept = as.POSIXct(as.Date(c("2017-01-01","2018-01-01", "2019-01-01")))) +
+  scale_color_viridis(discrete=TRUE) 
+ p
+ 
+
+```
+
+### Rain
+
+```{r rain_per_station, fig.height=10, fig.width=8}
+ p <- ggplot(filter(metadata_table, location_label != "BL")) + 
+  geom_col(aes(x=date,y=rain, fill=monsoon)) + 
+  facet_grid(rows = vars(location)) +
+  xlim(as.POSIXct(as.Date(c("2017-01-01","2019-01-01" )))) + 
+  geom_vline(xintercept = as.POSIXct(as.Date(c("2017-01-01","2018-01-01", "2019-01-01")))) +
+  scale_fill_viridis(discrete=TRUE) 
+ p
+ 
+
+```
+
+## Average
+### Rain
+```{r rain_mean_per_station}
+ rain <- metadata_table %>% 
+   group_by(date, monsoon) %>%
+   summarise(rain_mean = mean(rain, na.rm=TRUE))
+ 
+ p <- ggplot(rain) + 
+  geom_point(aes(x=date,y=rain_mean, color=monsoon), size=5) +
+  xlim(as.POSIXct(as.Date(c("2017-01-01","2019-01-01" )))) + 
+  geom_vline(xintercept = as.POSIXct(as.Date(c("2017-01-01","2018-01-01", "2019-01-01")))) +
+  scale_color_viridis(discrete=TRUE) 
+ p
+ 
+```
+
 
 # Phyloseq analysis
 
@@ -438,10 +515,11 @@ for (factor in c("strait", "location", "monsoon")) {
 
 ### Main genera for different division of Eukaryotes (Autotrophs)
 
-```{r bar_plot_genera, fig.height=6, fig.width=8}
+```{r bar_plot_genera, fig.height=10, fig.width=8}
 for (one_division in c("Chlorophyta", "Dinoflagellata", "Ochrophyta")){
   ps_subset <- subset_taxa(ps_photo_abundant, division %in% one_division)
-  p <- plot_bar(ps_subset, x="genus",  facet_grid = ~strait) +
+  p <- plot_bar(ps_subset, x="genus") + 
+    facet_grid(rows = vars(monsoon), cols=vars(strait)) +
     geom_col() +
     theme(axis.text.x = element_text(angle = 90, vjust=0.5, hjust=1)) +
     ggtitle(str_c(one_division," - Abundant OTUs")) +
@@ -452,10 +530,11 @@ for (one_division in c("Chlorophyta", "Dinoflagellata", "Ochrophyta")){
 
 ### Main species of Mamiellophyceae and Diatoms (Eukaryotes - Autrotrophs)
 
-```{r bar_plot_species, fig.height=6, fig.width=8}
+```{r bar_plot_species, fig.height=10, fig.width=8}
 for (one_class in c("Mamiellophyceae", "Dinophyceae", "Bacillariophyta")){
   ps_subset <- subset_taxa(ps_photo_abundant, class %in% one_class)
-  p <- plot_bar(ps_subset, x="species", facet_grid = ~strait) +
+  p <- plot_bar(ps_subset, x="species") + 
+    facet_grid(rows = vars(monsoon), cols=vars(strait)) +
     geom_col() +
     theme(axis.text.x = element_text(angle = 90, vjust=0.5, hjust=1)) +
     ggtitle(str_c(one_class," - Abundant OTUs"))+
@@ -574,7 +653,7 @@ ps_nmds <- function(ps_list) {
       p <- plot_ordination(ps_nmds, singa.ord, type="samples", color="strait", 
                       shape="monsoon", title=ps_list$title[[i]]) +
            geom_point(size=5)  +
-           scale_color_manual(values=c("red", "green","blue")) +
+           scale_color_manual(values=c("red", "yellow","blue")) +
            scale_shape_manual(values = c(17,18,15,16)) +
            geom_text(aes(label=location_label), nudge_x=nudge, nudge_y=nudge, check_overlap = FALSE, size=3)
            theme_bw()
@@ -594,14 +673,14 @@ ps_nmds <- function(ps_list) {
 
 ```{r nmds_all, fig.height=8, fig.width=8}
 
-  ps_nmds(ps_list)
+  ps_nmds(ps_list)  
   
 ```
 
 ### Abundant OTUs
 ```{r  nmds_abundant, fig.height=8, fig.width=8}
 
-  ps_nmds(ps_list_abundant)
+  ps_nmds(ps_list_abundant)   
 
 ```
 
