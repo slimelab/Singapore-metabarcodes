@@ -41,7 +41,8 @@ This file defines all the necessary libraries and variables
   otu_file <- full_path_data("feature-table_unrarefied.tsv")
   sequence_file <- full_path_data("ref_sequences_unrarefied.fasta")
   
-  metadata_file <- "../metadata/Singapore_metadata.xlsx"
+  metadata_xlsx <- "../metadata/Singapore_metadata.xlsx"
+  metadata_csv <- "../metadata/monsoonpaper_env_data.csv"
   
   sequence_file_euk <- full_path_data("ASV_unrarefied_euk.fasta")
   sequence_file_mamiello <- full_path_data("ASV_Mamiello.fasta")
@@ -61,16 +62,21 @@ This file defines all the necessary libraries and variables
 
 ```{r}
 # Read the sample and metadata tables
-  sample_table <- read_excel(metadata_file, sheet="samples", range="A1:D89") 
+  sample_table <- read_excel(metadata_xlsx, sheet="samples", range="A1:D89") 
 
-  metadata_table  <- read_excel(metadata_file, sheet="metadata", na=c("ND", ""))
+  metadata_table  <- read_csv(metadata_csv, na=c("ND", "")) %>% 
+    dplyr::rename(sample_code=Sample, day_number=Day_number, date=Date, location=Location, monsoon=`Monsoon period`) %>% 
+    select(-Strait) %>% 
+    mutate(date = lubridate::parse_date_time(date,"dmy"))
   
-  station_table  <- read_excel(metadata_file, sheet="stations", na=c("ND", ""))
+  station_table  <- read_excel(metadata_xlsx, sheet="stations", na=c("ND", ""))
 
-  sample_table <- left_join(sample_table, metadata_table) %>% 
-                  mutate(sample_label = str_c(strait_label,location_label,
-                                              monsoon,sprintf("%03d",day_number), 
-                                              sep="_"))
+  sample_table <- sample_table %>% 
+    left_join(metadata_table) %>%
+    left_join(station_table) %>% 
+    mutate(sample_label = str_c(strait_label,location_label,
+                                monsoon,sprintf("%03d",day_number), 
+                                sep="_"))
 
 # Read the taxonomy table
   taxo_table <- read_tsv(taxo_file)
@@ -193,7 +199,7 @@ Use leaflet
 ## Per station
 ### Temp
 ```{r temp_per_station, fig.height=10, fig.width=8}
- p <- ggplot(filter(metadata_table, location_label != "BL")) + 
+ p <- ggplot(filter(sample_table, location_label != "BL")) + 
   geom_line(aes(x=date,y=Temperature), na.rm=TRUE) +
   geom_point(aes(x=date,y=Temperature, color=monsoon), size=5) +
   facet_grid(rows = vars(location)) +
@@ -207,7 +213,7 @@ Use leaflet
 ```
 ### Salinity
 ```{r salinity_per_station, fig.height=10, fig.width=8}
- p <- ggplot(filter(metadata_table, location_label != "BL")) + 
+ p <- ggplot(filter(sample_table, location_label != "BL")) + 
   geom_line(aes(x=date,y=Salinity), na.rm=TRUE) +
   geom_point(aes(x=date,y=Salinity, color=monsoon), size=5) +
   facet_grid(rows = vars(location)) +
@@ -223,7 +229,7 @@ Use leaflet
 ### Chlorophyll
 
 ```{r chl_per_station, fig.height=10, fig.width=8}
- p <- ggplot(filter(metadata_table, location_label != "BL")) + 
+ p <- ggplot(filter(sample_table, location_label != "BL")) + 
   geom_line(aes(x=date,y=Chl), na.rm=TRUE) +
   geom_point(aes(x=date,y=Chl, color=monsoon), size=5) +
   facet_grid(rows = vars(location)) +
@@ -235,11 +241,11 @@ Use leaflet
 
 ```
 
-### Rain
+### Rain over 7 days
 
 ```{r rain_per_station, fig.height=10, fig.width=8}
- p <- ggplot(filter(metadata_table, location_label != "BL")) + 
-  geom_col(aes(x=date,y=rain, fill=monsoon)) + 
+ p <- ggplot(filter(sample_table, location_label != "BL")) + 
+  geom_col(aes(x=date,y=Rain7, fill=monsoon)) + 
   facet_grid(rows = vars(location)) +
   xlim(as.POSIXct(as.Date(c("2017-01-01","2019-01-01" )))) + 
   geom_vline(xintercept = as.POSIXct(as.Date(c("2017-01-01","2018-01-01", "2019-01-01")))) +
@@ -250,14 +256,14 @@ Use leaflet
 ```
 
 ## Average
-### Rain
+### Rain over 7 days
 ```{r rain_mean_per_station}
- rain <- metadata_table %>% 
+ rain <- sample_table %>% 
    group_by(date, monsoon) %>%
-   summarise(rain_mean = mean(rain, na.rm=TRUE))
+   summarise(Rain7_mean = mean(Rain7, na.rm=TRUE))
  
  p <- ggplot(rain) + 
-  geom_point(aes(x=date,y=rain_mean, color=monsoon), size=5) +
+  geom_point(aes(x=date,y=Rain7_mean, color=monsoon), size=5) +
   xlim(as.POSIXct(as.Date(c("2017-01-01","2019-01-01" )))) + 
   geom_vline(xintercept = as.POSIXct(as.Date(c("2017-01-01","2018-01-01", "2019-01-01")))) +
   scale_color_viridis(discrete=TRUE) 
