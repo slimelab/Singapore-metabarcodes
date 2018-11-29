@@ -132,19 +132,21 @@ This file defines all the necessary libraries and variables
 ## Use dada2 to reassign to PR2
 
 ```{r, eval=FALSE}
- dada2_assign(seq_file_name=sequence_file_euk)
+ dada2_assign(seq_file_name=sequence_file_euk,
+  ref_file_name = "C:/daniel.vaulot@gmail.com/Databases/_PR2/versions/4.11.0/pr2_version_4.11.0_dada2.fasta.gz")
  
 ```
 
 ## Read the PR2 assignement and merge with initial otu table
 
 ```{r}
- otu_euk_pr2 <- read_tsv(dada2_taxo_file_euk)
- otu_euk_pr2_boot <- read_tsv(dada2_boot_file_euk) %>%
-   rename_all(funs(str_c(.,"_boot"))) %>% 
-   rename(seq_name = seq_name_boot)
- otu_euk_pr2 <- left_join(otu_euk_pr2, otu_euk_pr2_boot) %>% 
+ otu_euk_pr2 <- read_tsv(dada2_taxo_file_euk) %>% 
    rename(otu_id= seq_name)
+ # otu_euk_pr2_boot <- read_tsv(dada2_boot_file_euk) %>%
+ #   rename_all(funs(str_c(.,"_boot"))) %>% 
+ #   rename(seq_name = seq_name_boot)
+ # otu_euk_pr2 <- left_join(otu_euk_pr2, otu_euk_pr2_boot) %>% 
+ #   rename(otu_id= seq_name)
  otu_table_final <- left_join(otu_table, otu_euk_pr2) %>% 
    select(otu_id, otu_name,taxo1:taxo7, Taxon, kingdom:species_boot,matches("EC|PR|RM|SBW|STJ"),sequence)
           

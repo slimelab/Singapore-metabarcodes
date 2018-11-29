@@ -152,17 +152,18 @@ Species/clades in **bold** are found in both OSD and Singkaryotes
 Species	Mamiello | %  
 --- | ---
 **Micromonas commoda AB** |	 36.33  
-Bathycoccus prasinos |	 10.20   
-Ostreococcus clade B |	 9.90   
+**Bathycoccus prasinos** |	 10.20   
+**Ostreococcus clade B** |	 9.90   
 **Micromonas clade B warm I** |	 5.31   
 **Micromonas clade B warm II** |	 4.80  
 Ostreococcus clade E |	 3.62   
 
 ### Singkaryote data set  
+**Bathycoccus prasinos**
 **Micromonas commoda AB**  
 **Micromonas clade B warm**  
-Ostreo lucimarinus  
-Mantoniella squamata  
+**Ostreo clade B**  
+Ostreo sp. -> This may correspond to Ostreo clade E
 
 ## Ochrophyta   
 Seems coherent    
