@@ -35,6 +35,12 @@
   pr2_taxo_levels_capital <- c("Kingdom", "Supergroup","Division", "Class", 
                       "Order", "Family", "Genus", "Species")
   pr2_taxo_levels <- str_to_lower(pr2_taxo_levels_capital)
+  
+# Color for divisions
+  colors <- viridis_pal()(25)
+  division_colors <- c("Haptophyta" = colors[6], "Dinoflagellata" = colors[1], "Chlorophyta" = colors[21], 
+                       "Ochrophyta" = colors[16], "Cryptophyta" = colors[25])
+  # show_col(viridis_pal()(25))
 
 # knitr options -----------------------------------------------------------
 
