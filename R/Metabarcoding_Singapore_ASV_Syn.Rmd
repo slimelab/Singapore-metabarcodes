@@ -1,0 +1,104 @@
+---
+title: "Metabarcoding Singapore <br> ASV from Dada2"
+author: "Daniel Vaulot, Adriana Lopes dos Santos"
+date: '`r format(Sys.time(), "%d %m %Y")`'
+header-includes:
+   - \usepackage{color, fancyvrb}
+output:
+  rmdformats::readthedown:
+    highlight: kate
+    toc_depth: 3
+    number_sections : yes    
+  pdf_document: 
+    toc: yes
+    toc_depth: 3
+    number_sections : yes
+---
+## Time series - Synechococus vs Mamiellophyceae
+
+```{r bar_plot_date_syn, fig.height=6, fig.width=8, message=FALSE, warning=FALSE}
+  long_syn_mam <- long_all %>% 
+    filter(str_detect(family, "Synechococcus") | class =="Mamiellophyceae") %>%
+    filter(location %in% c("East Coast", "St.John")) %>% 
+    group_by(date, class, location, monsoon) %>% 
+    summarize(n_seq = sum(n_seq)) %>% 
+    mutate(n_seq_corrected = case_when(class== "Mamiellophyceae" ~ n_seq/3,
+                                       TRUE ~ n_seq))
+  long_both <- long_syn_mam %>% 
+    group_by(date, location, monsoon) %>% 
+    summarize(n_seq_both_corrected = sum(n_seq_corrected), n_seq_both = sum(n_seq))
+  long_syn_mam <- left_join(long_syn_mam, long_both) %>% 
+    mutate(pct_seq_corrected = n_seq_corrected/n_seq_both_corrected*100, 
+           pct_seq = n_seq/n_seq_both*100) %>% 
+    filter(!is.nan(pct_seq))
+  
+  p <- ggplot(long_syn_mam, aes(x=date, y=pct_seq_corrected, fill = class)) + 
+      facet_grid(rows = vars(location)) + 
+      geom_col() +
+      ggtitle("Synechococcus vs Mamiellophyceae" , "Sequences corrected for number of rRNA gene copies") +
+      theme(axis.text.x = element_text(angle = 45, vjust=0.5, hjust=1)) +
+      ylab("% of sequences") +
+      xlim(as.POSIXct(as.Date(c("2017-03-01","2018-08-01" )))) + 
+      geom_vline(xintercept = as.POSIXct(as.Date(c("2018-01-01"))))+
+      scale_fill_viridis(discrete=TRUE, direction = -1)
+  print(p)
+  
+  p <- ggplot(long_syn_mam, aes(x=date, y=pct_seq, fill = class)) + 
+      facet_grid(rows = vars(location)) + 
+      geom_col() +
+      ggtitle("Synechococcus vs Mamiellophyceae", "Sequences not corrected") +
+      theme(axis.text.x = element_text(angle = 45, vjust=0.5, hjust=1)) +
+      ylab("% of sequences") +
+      xlim(as.POSIXct(as.Date(c("2017-03-01","2018-08-01" )))) + 
+      geom_vline(xintercept = as.POSIXct(as.Date(c("2018-01-01"))))+
+      scale_fill_viridis(discrete=TRUE, direction = -1)
+  print(p)
+  
+    p <- ggplot(filter(long_syn_mam, class!="Mamiellophyceae"), aes(x=date, y=pct_seq_corrected, fill = class)) + 
+      facet_grid(rows = vars(location)) + 
+      geom_col() +
+      ggtitle("Synechococcus", "Sequences corrected for number of rRNA gene copies") +
+      theme(axis.text.x = element_text(angle = 45, vjust=0.5, hjust=1)) +
+      ylab("% of sequences from picophytoplankton") +
+      xlim(as.POSIXct(as.Date(c("2017-03-01","2018-08-01" )))) + 
+      geom_vline(xintercept = as.POSIXct(as.Date(c("2018-01-01"))))+
+      scale_fill_viridis(discrete=TRUE, direction = 1, guide = FALSE)
+      
+  print(p)
+```
+## Time series - Synechococcus clades
+
+```{r bar_plot_date_syn, fig.height=6, fig.width=8, message=FALSE, warning=FALSE}
+  long_syn_clade <- long_all %>% 
+    filter(str_detect(family, "Synechococcus")) %>%
+    filter(location %in% c("East Coast", "St.John")) %>% 
+    group_by(date, genus, location, monsoon) %>% 
+    summarize(n_seq_clade = sum(n_seq))
+
+  long_syn_tot <- long_all %>% 
+    filter(str_detect(family, "Synechococcus")) %>%
+    filter(location %in% c("East Coast", "St.John")) %>% 
+    group_by(date,location, monsoon) %>% 
+    summarize(n_seq_syn = sum(n_seq))
+  
+  long_syn_clade <- long_syn_clade %>% 
+    merge(long_syn_tot) %>% 
+    mutate(pct_syn_clade = n_seq_clade/n_seq_syn*100)
+
+  p <- ggplot(long_syn_clade, aes(x=as.Date(date), y=pct_syn_clade, fill = genus)) + 
+      facet_grid(rows = vars(location)) + 
+      geom_col() +
+      ggtitle("Synechococcus clades" , "") +
+      theme(axis.text.x = element_text(angle = 45, vjust=1, hjust=1)) +
+      ylab("% of sequences") +
+      scale_x_date(breaks="1 month", minor_breaks = "1 week", limits = as.Date(c("2017-03-01","2018-08-01")), name="") +
+      geom_vline(xintercept = as.Date(c("2018-01-01"))) +
+      scale_fill_viridis(discrete=TRUE, direction = 1) 
+  print(p)
+  
+  ggsave("Singapour Syn clades.pdf", p, width=20, height=10, units="cm", scale=1)
+  
+  
+  
+ 
+```
