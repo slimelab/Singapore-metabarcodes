@@ -1,6 +1,62 @@
 # Singapore metabarcodes
 
 
+## 2019-02-19
+
+### Meeting 2019-02-16
+These are the action points from today’s meeting:
+
+- Caroline: The paper is about seasonality but most discussion currently is on differences between the straits. Maybe best to write: we had the hypothesis that ...(no seasons and similar effects on both straits)... but we found that (Singapore affected by Monsoons, Johor all over the place)
+- Caroline: introduce the importance of seasonality (or lack of knowledge of seasonality) in equatorial regions
+- Caroline: Update figures with ellipses around the Johor monsoons, NH4 and NOx in MDS envfit and change the monsoon shading on the nutrient plots to match the rest of the manuscript
+- Caroline + Patrick: try to salvage as much DHI data as possible to fill our nutrient gaps
+- Patrick: Write about the monsoon-driven shifts in water chemistry
+- Fede: ASV for Caroline
+- Fede: More GNEISS analysis (Singapore only on salinity, temp. as proxies for monsoon season)
+- Fede: Recover average monthly wind data for supplementary
+- Adriana+ Daniel: Write discussion about the Euks
+- Daniel: Vectors for taxa on the MDS of Singapore (as support/alternative to GNEISS)
+
+Since we are all good academics and, therefore, chronic procrastinators let’s try to do all this by Wed. next week (Feb. 20). Target date for submission is March 15th.
+
+May the monsoon warm winds be on our backs.
+
+## Caroline
+
+Hi Patrick,
+
+Thank you for checking out nutrients data.
+Yes, based on the DHI nutrient data report, they expressed their data in mg/L.
+If everyone are comfortable with using those data. I will used them to remake few of the figures and analysis for the paper.
+I have attached the updated environmental data table with those new nutrients data.
+
+### Patrick
+Hi Caroline,
+
+I’ve converted the DHI values to µmol/L. To the best of my knowledge, they expressed all of their data as (mg of nutrient element) / L, so mg NO3 / L means mg of nitrogen in form of nitrate per 1 L. Hence the conversion is to divide by 14 mg / mmol for NO3, NO2, and NH4.
+
+I haven’t compared again between the DHI data and our data for the time when there is overlap, but we’d analysed that together before, so you can just look back at those plots. As I recall, the agreement was not too bad for NO3, NO2, and I think also not too bad for PO4. I can’t remember what NH4 was like, but NH4 analysis is always troublesome. I do remember that Si(OH)4 showed poorer agreement, but maybe that is not the most critical parameter for you anyway.
+
+What is clear is that, broadly speaking, the DHI data for each station are within more or less the same range as the subsequent measurements on my system, so there is no major source of discrepancy. There is an equally pronounced difference between the Johor Strait samples and the Singapore Strait samples. I don’t know how well the DHI samples match the seasonality, but I because the time period is relatively short I don’t think it will make too much of a difference either way.
+
+I’d feel comfortable with using the data, as long as you simply state in the methods that those samples were analysed on a different instrument using commercial methods, and then give the reporting limits of their methods. Like I said, I’d just be more careful with the silicic acid, not least because their data also have quite different results between St. John’s and East Coast on the same sampling days; while I have the odd difference, generally, my silicic acid data are very similar for those two sites, which is what you’d expect (unless there’s a difference in salinity).
+
+Hope this helps,
+Patrick
+
+### Caroline
+
+Hi Patrick,
+
+Hope this email finds you well.
+
+Please see attached the excel sheet that contains the nutrients data from DHI and those measured by Chen Shuang.
+
+Let me know if you need anything else, and I will be happy to meet with you if you have any questions.
+
+Best
+Caroline
+
 ### Fede 2018-09-15
 
 otu_table_high_conf_w_tax.xls : Here is the unrarefied OTU table at 97% against SILVA 132 (old QIIME). Mostly for Caroline to produce the individual rarefaction curves.

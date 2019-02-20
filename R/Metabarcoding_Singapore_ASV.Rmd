@@ -200,7 +200,9 @@ blast_18S_reformat(blast_file)
 
 
 # Map
-Use leaflet
+## Leaflet map
+
+* Visualize different layers: https://leaflet-extras.github.io/leaflet-providers/preview/
 
 ```{r eval=TRUE, fig.height=10, fig.width=10}
 
@@ -208,7 +210,9 @@ Use leaflet
   lat_center = mean(station_table$latitude)
 
   map <- leaflet(width = 1000, height = 1000) %>%
-    addTiles() %>% 
+   addTiles() %>%  # Default
+#    addTiles(urlTemplate = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}' ) %>%  # Satellite
+#    addTiles(urlTemplate = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}' ) %>%  # Grey background
     setView(lng=lng_center, lat=lat_center, zoom=11) %>% 
     addCircleMarkers(data = station_table, lat = ~ latitude, lng = ~ longitude, 
                      radius = 5,
@@ -220,6 +224,50 @@ Use leaflet
 
   
 ```
+
+## Use world map package
+
+* Resolution is very bad
+
+```{r eval=FALSE, fig.height=5, fig.width=5}
+
+  worldMap <- rworldmap::getMap(resolution = "high")
+  world.points <- fortify(worldMap)
+  world.points$region <- world.points$id
+  world.df <- world.points[,c("long","lat","group", "region")]
+  singapore.df <- world.df %>% filter(region %in% c("Singapore"))
+  
+  map <- ggplot() +
+    geom_polygon(data = singapore.df, aes(x=long, y = lat, group = group), fill="black", color="black") 
+  
+  map
+  
+```
+
+## Use R naturalearth package
+
+Resolution is bad also...
+
+```{r, fig.height=5, fig.width=5, eval=FALSE}
+  singapore.sf <- rnaturalearth::ne_countries(country = 'singapore', scale='large')
+
+  tmap::tm_shape(singapore.sf) +
+  tmap::tm_fill() 
+
+  singapore.sf <- rnaturalearth::ne_countries(country = 'singapore', scale='large', returnclass='sf')  
+  map <- ggplot() +
+  geom_sf(data = singapore.sf, fill="black", color="black") 
+  
+  map
+  
+# Mapping of small countries  
+  sf <- rnaturalearth::ne_download(scale = 110, type = 'tiny_countries', category = 'cultural', returnclass="sf")
+  map <- ggplot() +
+    geom_sf(data = filter(sf, NAME=="Singapore"), fill="black", color="black")
+    
+  map
+```
+
 
 
 # Environmental data
@@ -803,7 +851,24 @@ All ASVs considered (not only abundant)
 
 ```
 
+### Mamiello (Only Bathy, Ostreo and Micromonas) at species level
+All ASVs considered (not only abundant)
 
+```{r heatmap_mamiello, fig.height=4, fig.width=10}
+
+  ps_heat <- subset_taxa(ps_photo, genus %in% c("Ostreococcus", "Bathycoccus", "Micromonas"))
+  
+  ps_heat <- tax_glom(ps_heat,taxrank = "species")
+
+  p <- plot_heatmap(ps_heat, method = "NMDS", distance = "bray", 
+               taxa.label = "species",  taxa.order="species",
+               sample.label = "sample_label", sample.order="sample_label",
+               low="beige", high="red", na.value="beige",trans = scales::log_trans(10), 
+               title="Mamiellophyceae in Singapore")
+  print(p)
+  
+
+```
 
 
 ## NMDS

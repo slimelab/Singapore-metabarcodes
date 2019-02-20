@@ -66,9 +66,9 @@ output:
       
   print(p)
 ```
-## Time series - Synechococcus clades
+## Time series - Mamiello genera
 
-```{r bar_plot_date_syn, fig.height=6, fig.width=8, message=FALSE, warning=FALSE}
+```{r bar_plot_date_mamiello, fig.height=6, fig.width=8, message=FALSE, warning=FALSE}
   long_syn_clade <- long_all %>% 
     filter(str_detect(family, "Synechococcus")) %>%
     filter(location %in% c("East Coast", "St.John")) %>% 
@@ -97,6 +97,43 @@ output:
   print(p)
   
   ggsave("Singapour Syn clades.pdf", p, width=20, height=10, units="cm", scale=1)
+  
+  
+  
+ 
+```
+
+## Time series - Mamiellophyceae species
+
+```{r bar_plot_date_syn, fig.height=6, fig.width=10, message=FALSE, warning=FALSE}
+  long_genus <- long_all %>% 
+    filter(class =="Mamiellophyceae" & genus != "Mantoniella") %>%
+    filter(location %in% c("East Coast", "St.John")) %>% 
+    group_by(date, species, location, monsoon) %>% 
+    summarize(n_seq_genus = sum(n_seq))
+
+  long_class <- long_all %>% 
+    filter(class =="Mamiellophyceae" & genus != "Mantoniella") %>%
+    filter(location %in% c("East Coast", "St.John")) %>% 
+    group_by(date,location, monsoon) %>% 
+    summarize(n_seq_class = sum(n_seq))
+  
+  long_genus <- long_genus %>% 
+    merge(long_class) %>% 
+    mutate(pct_genus = n_seq_genus/n_seq_class*100)
+
+  p <- ggplot(long_genus, aes(x=as.Date(date), y=pct_genus, fill = species)) + 
+      facet_grid(rows = vars(location)) + 
+      geom_col() +
+      ggtitle("Mamiellophyceae species" , "") +
+      theme(axis.text.x = element_text(angle = 45, vjust=1, hjust=1)) +
+      ylab("% of sequences") +
+      scale_x_date(breaks="3 months",  limits = as.Date(c("2017-02-01","2018-08-01")), name="") +
+      geom_vline(xintercept = as.Date(c("2018-01-01")), size = 1) +
+      scale_fill_viridis(discrete=TRUE, direction = 1) 
+  print(p)
+  
+  ggsave("Singapour Mamiello genera.pdf", p, width=20, height=10, units="cm", scale=1)
   
   
   
