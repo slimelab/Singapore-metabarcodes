@@ -90,6 +90,26 @@ This file defines all the necessary libraries and variables
     separate(col=taxo_clean, into=str_c("taxo", c(0:6)), sep=";") %>% 
     rename(otu_name = `Feature ID`)
   
+# Remove duplicate entries for bacteria
+  pattern_taxa_removed <- "marine metagenome|uncultured"
+ 
+  taxo_table <- taxo_table %>% 
+    mutate(taxo2 = case_when (
+                      str_detect(taxo2,pattern_taxa_removed) ~ NA_character_,
+                      TRUE ~ taxo2),
+           taxo3 = case_when (
+                      str_detect(taxo3,pattern_taxa_removed) ~ NA_character_,
+                      TRUE ~ taxo3),
+           taxo4 = case_when (
+                      str_detect(taxo4,pattern_taxa_removed) ~ NA_character_,
+                      TRUE ~ taxo4),
+           taxo5 = case_when (
+                      str_detect(taxo5,pattern_taxa_removed) ~ NA_character_,
+                      TRUE ~ taxo5),
+           taxo6 = case_when (
+                      str_detect(taxo6,pattern_taxa_removed) ~ NA_character_,
+                      TRUE ~ taxo6))
+  
 # If taxo_i is empty, fill with taxo_i-1
   taxo_levels <- str_c("taxo", c(0:6))
   taxo_levels_number <- length(taxo_levels)
@@ -126,7 +146,7 @@ This file defines all the necessary libraries and variables
 # Write a fasta file for blast with all taxonomy roups
  # otu_sequences <- otu_table %>% transmute(sequence=sequence, seq_name=otu_id)
  # fasta_write(otu_sequences, file_name="../qiime/otu_rep_98_all.fasta", compress = FALSE, taxo_include = FALSE)  
-  write_tsv(otu_table, full_path_data("otu_table.tsv"), na="")
+# write_tsv(otu_table, full_path_data("otu_table.tsv"), na="")
   
 ```
 
@@ -165,7 +185,7 @@ This file defines all the necessary libraries and variables
  otu_table_final <- left_join(otu_table, otu_euk_pr2) %>% 
    select(otu_id, otu_name,taxo0:taxo6, Taxon, kingdom:species_boot,matches("EC|PR|RM|SBW|STJ"),sequence)
           
- write_tsv(otu_table_final, otu_table_final_file, na = "")
+ # write_tsv(otu_table_final, otu_table_final_file, na = "")
 ```
 
 ## Export fasta file with taxonomy for Mamiellophyceae
@@ -188,7 +208,6 @@ This file defines all the necessary libraries and variables
  otu_table_final <- otu_table_final %>% filter(!str_detect(taxo5, "Synechococcus")) %>% 
    bind_rows(otu_table_syn)
 ```
-
 
 # Process BLAST file
 
@@ -356,15 +375,23 @@ Filter the euk data to remove the low bootstraps values (threshold : bootstrap >
 
 Note the bootstrap threshold had to be higher for 98% compared to 97% (90% vs 65%). For ASV the same bootstrap has been used
 
-```{r warning=FALSE}
+### Write the final ASV table
+```{r}
   otu_table_euk_final <- otu_table_final %>% filter(supergroup_boot > 90)
   otu_table_prok_final <- otu_table_final %>% filter(taxo0 %in% c("Bacteria", "Archaea")) %>% 
     select(-kingdom, -supergroup, -division, -class, -order, -family, -genus) %>% 
     rename(kingdom=taxo0, supergroup=taxo1, division=taxo2, class=taxo3, order=taxo4, family=taxo5, genus=taxo6)
   
-  otu_table_ps <- bind_rows(otu_table_euk_final, otu_table_prok_final)
+  otu_table_ps <- bind_rows(otu_table_euk_final, otu_table_prok_final) %>% 
+    select_at(vars(-matches("taxo\\d"))) %>% 
+    arrange(otu_id)
+  
+  write_tsv(otu_table_ps, otu_table_final_file, na = "")
+```
 
+### Create the phyloseq file
 
+```{r warning=FALSE}
   otu_mat<- otu_table_ps %>%  select(otu=otu_id,matches("EC|PR|RM|SBW|STJ"),-species, -species_boot )
   tax_mat<- otu_table_ps %>%  select(otu=otu_id,kingdom:species)
   samples_df <- sample_table %>%  rename (sample=sample_id)
@@ -580,11 +607,12 @@ ps_abundant <- function(ps,contrib_min=0.1, title){
 
 ### Arrange the different treemaps in a grid and save
 
-```{r, eval=TRUE}
+```{r eval=TRUE, fig.height=15, fig.width=5}
     grid_treemap_fig <- gridExtra::grid.arrange(grobs=array_treemap, 
                                                  ncol=2, nrow=5, clip=FALSE, 
                                                  padding = unit(0, "line"),
                                                 as.table = FALSE) 
+
    ggsave("../fig/Fig_Treemaps.png", grid_treemap_fig, height = 25, width = 10, dpi = 300)
    
 ```
@@ -618,7 +646,42 @@ ps_abundant <- function(ps,contrib_min=0.1, title){
 
    grid_fig <-  cowplot::plot_grid(array_species[["Singapore"]],array_species[["Johor"]], 
                                    labels=c("A","B"), align="h", ncol=2, label_size = 20)
+
    ggsave("../fig/Fig_Abundant_Species.png", grid_fig, 
+          height = 10, width = 20, dpi = 300)
+
+```
+
+## Most abundant prokaryotes taxo6 (~ genus)
+Taxo6 (Family) corresponds to the genus for bacteria... A bit confusing, will need to be fixed
+
+```{r abundant_genus_prok, fig.height=6, fig.width=12}
+  array_species <- list()
+
+  for (one_strait in c("Singapore", "Johor")) {
+
+  long_prok_genus <- filter(long_prok, strait == one_strait) %>%
+    mutate(genus_label = str_c(division, family, sep="-")) %>% 
+    group_by(supergroup, division, class, family, genus_label) %>% 
+    summarize(n_seq = sum(n_seq)) %>% 
+    arrange(desc(n_seq)) %>% 
+    ungroup()
+
+  array_species[[one_strait]] <- ggplot(top_n(long_prok_genus, 20, n_seq)) + 
+    geom_col(aes(x=reorder(genus_label, n_seq), y=n_seq, fill=supergroup)) + 
+    coord_flip() +
+    xlab("") + ylab("Number of reads") +
+    scale_fill_manual(values = supergroup_colors) +
+    ggtitle(one_strait)
+  
+  print(array_species[[one_strait]])
+  
+  }
+
+   grid_fig <-  cowplot::plot_grid(array_species[["Singapore"]],array_species[["Johor"]], 
+                                   labels=c("A","B"), align="h", ncol=2, label_size = 20)
+
+   ggsave("../fig/Fig_Abundant_Genus_Prok.png", grid_fig, 
           height = 10, width = 20, dpi = 300)
 
 ```
@@ -777,7 +840,7 @@ for (one_division in c("Chlorophyta", "Dinoflagellata", "Ochrophyta", "Cryptophy
     #                                              padding = unit(0, "line"),
     #                                             as.table = FALSE) 
    grid_fig <-  cowplot::plot_grid(p[["Chlorophyta"]],p[["Ochrophyta"]], labels=c("A","B"), align="v", nrow=2)
-   ggsave("../fig/Fig_Species_Moonsoon.png", grid_fig, height = 12, width = 8, dpi = 300)
+   ggsave("../fig/Fig_Species_Moonsoon.png", grid_fig, height = 10, width = 8, dpi = 300)
 ```
 
 ## Heatmaps
@@ -835,7 +898,7 @@ All ASVs considered (not only abundant)
 ### Mamiello (Only Bathy, Ostreo and Micromonas) at genus level
 All ASVs considered (not only abundant)
 
-```{r heatmap_mamiello, fig.height=4, fig.width=10}
+```{r heatmap_mamiello_1, fig.height=4, fig.width=10}
 
   ps_heat <- subset_taxa(ps_photo, genus %in% c("Ostreococcus", "Bathycoccus", "Micromonas"))
   
@@ -900,7 +963,7 @@ ps_do_nmds <- function(ps_list) {
       ps_nmds <- prune_samples(sample_sums(ps_nmds)>0, ps_nmds)
       
       # Remove samples from Raffles
-      ps_nmds <- subset_samples(ps_nmds, strait != "Raffles Mari")
+      ps_nmds <- subset_samples(ps_nmds, !(str_detect(strait, "Raffles Mari|Johor")))
       
       # Remove samples that caused problems (1= prok, 2=euk, 3=euk auto)
       if (i==1) {  ps_nmds <- prune_samples(!(sample_names(ps_nmds) %in% c("RM13XS36")), ps_nmds) } # Prokaryotes
@@ -995,7 +1058,8 @@ ps_do_nmds <- function(ps_list) {
                                    plot_array_abundant[[3]], plot_array_abundant[[6]], ncol=2,
                                    labels = c("A", "B", "C", "D"),
                                    align="hv", label_size = 20)
-   ggsave("../fig/Fig_NMDS.png", grid_fig, height = 12, width = 18, dpi = 300)
+   grid_fig
+   ggsave("../fig/Fig_NMDS-Singapore.png", grid_fig, height = 12, width = 18, dpi = 300)
 ```
 
 

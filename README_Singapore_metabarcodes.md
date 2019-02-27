@@ -1,5 +1,9 @@
 # Singapore metabarcodes
 
+To do
+* Treemap of bacteria to try to show difference between SW vs the other monsoon for archeae, bacteria (Syn) as well as eukaryotes
+* Do some bargraphs idem
+* Simper analysis
 
 ## 2019-02-19
 

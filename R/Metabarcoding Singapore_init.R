@@ -40,8 +40,12 @@
   colors <- viridis_pal()(25)
   division_colors <- c("Haptophyta" = colors[6], "Dinoflagellata" = colors[1], "Chlorophyta" = colors[21], 
                        "Ochrophyta" = colors[16], "Cryptophyta" = colors[25])
-  # show_col(viridis_pal()(25))
+  # scales::show_col(viridis_pal()(25))
 
+   supergroup_colors <- c("Actinobacteria" = colors[1], "Bacteria" = colors[4], "Bacteroidetes" = colors[8], 
+                       "Cyanobacteria" = colors[12], "Marinimicrobia (SAR406 clade)" = colors[16], "Proteobacteria"= colors[20],
+                       "Euryarchaeota" = colors[22], "Thaumarchaeota" = colors[25])
+  
 # knitr options -----------------------------------------------------------
 
 library(knitr)
