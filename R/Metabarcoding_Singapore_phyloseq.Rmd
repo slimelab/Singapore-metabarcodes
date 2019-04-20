@@ -1,0 +1,950 @@
+---
+title: "Metabarcoding Singapore <br> Phyloseq"
+author: "Daniel Vaulot, Adriana Lopes dos Santos"
+date: '`r format(Sys.time(), "%d %m %Y")`'
+header-includes:
+   - \usepackage{color, fancyvrb}
+output:
+  rmdformats::readthedown:
+    highlight: kate
+    toc_depth: 3
+    number_sections : yes    
+  pdf_document: 
+    toc: yes
+    toc_depth: 3
+    number_sections : yes
+---
+
+
+# Aim
+
+* Create Phyloseq file from samples, metadata and OTU table (read from Excel file)
+
+# Initialize
+
+This file defines all the necessary libraries and variables
+
+```{r init, eval=TRUE, message=FALSE, warning=FALSE}
+  source('Metabarcoding Singapore_init.R', echo=FALSE)
+```
+
+# Read the data
+## File names
+
+```{r}
+# Metadata and stations
+  metadata_xlsx <- "Singapore_metadata.xlsx"
+  metadata_csv <- "monsoonpaper_env_data.csv"
+  
+# OTUs
+  otu_excel_file <- "Singapore ASV_table.xlsx"
+```
+
+
+## Read the files
+* The dada2 treatment has already removed the forward and reverse primers, so no need to remove them
+* Work with the unrarefied data
+
+### Metadata and sample files
+
+```{r}
+# Read the sample and metadata tables
+  sample_table <- read_excel(metadata_xlsx, sheet="samples", range="A1:D89") 
+
+  metadata_table  <- read_csv(metadata_csv, na=c("ND", "")) %>% 
+    dplyr::rename(sample_code=Sample, day_number=Day_number, date=Date, 
+                  location=Location, monsoon=`Monsoon period`) %>% 
+    select(-Strait) %>% 
+    mutate(date = lubridate::parse_date_time(date,"dmy"),
+           monsoon = forcats::fct_relevel(monsoon, "NE", "IM-1", "SW", "IM-2"))
+  
+  station_table  <- read_excel(metadata_xlsx, sheet="stations", na=c("ND", ""))
+
+  sample_table <- sample_table %>% 
+    left_join(metadata_table) %>%
+    left_join(station_table) %>% 
+    mutate(sample_label = str_c(strait_label,location_label,
+                                monsoon,sprintf("%03d",day_number), 
+                                sep="_"))
+
+```
+### OTU table
+NOTE: The OTU table is read from Excel file
+
+```{r}
+# Read the OTU table
+
+  otu_table_final <- read_excel(otu_excel_file, sheet="ASV final")
+
+```
+
+
+# Map
+## Leaflet map
+
+* Visualize different layers: https://leaflet-extras.github.io/leaflet-providers/preview/
+
+```{r eval=TRUE, fig.height=10, fig.width=10}
+
+  lng_center = mean(station_table$longitude)
+  lat_center = mean(station_table$latitude)
+
+  map <- leaflet(width = 1000, height = 1000) %>%
+   addTiles() %>%  # Default
+#    addTiles(urlTemplate = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}' ) %>%  # Satellite
+#    addTiles(urlTemplate = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}' ) %>%  # Grey background
+    setView(lng=lng_center, lat=lat_center, zoom=11) %>% 
+    addCircleMarkers(data = station_table, lat = ~ latitude, lng = ~ longitude, 
+                     radius = 5,
+               label = ~ location, 
+               labelOptions = labelOptions(textsize = "10px", noHide = T),
+               clusterOptions = markerClusterOptions()) 
+
+  map
+```
+
+
+# Environmental data
+
+## Per station
+### Temp
+```{r temp_per_station, fig.height=10, fig.width=8}
+ p <- ggplot(filter(sample_table, location_label != "BL")) + 
+  geom_line(aes(x=date,y=Temperature), na.rm=TRUE) +
+  geom_point(aes(x=date,y=Temperature, color=monsoon), size=5) +
+  facet_grid(rows = vars(location)) +
+  ylim(26,34) +
+  xlim(as.POSIXct(as.Date(c("2017-01-01","2019-01-01" )))) + 
+  geom_vline(xintercept = as.POSIXct(as.Date(c("2017-01-01","2018-01-01", "2019-01-01")))) +
+  scale_color_viridis(discrete=TRUE) 
+ p
+ 
+
+```
+### Salinity
+```{r salinity_per_station, fig.height=10, fig.width=8}
+ p <- ggplot(filter(sample_table, location_label != "BL")) + 
+  geom_line(aes(x=date,y=Salinity), na.rm=TRUE) +
+  geom_point(aes(x=date,y=Salinity, color=monsoon), size=5) +
+  facet_grid(rows = vars(location)) +
+  ylim(15,35) +
+  xlim(as.POSIXct(as.Date(c("2017-01-01","2019-01-01" )))) + 
+  geom_vline(xintercept = as.POSIXct(as.Date(c("2017-01-01","2018-01-01", "2019-01-01")))) +
+  scale_color_viridis(discrete=TRUE) 
+ p
+ 
+
+```
+
+### Chlorophyll
+
+```{r chl_per_station, fig.height=10, fig.width=8}
+ p <- ggplot(filter(sample_table, location_label != "BL")) + 
+  geom_line(aes(x=date,y=Chl), na.rm=TRUE) +
+  geom_point(aes(x=date,y=Chl, color=monsoon), size=5) +
+  facet_grid(rows = vars(location)) +
+  xlim(as.POSIXct(as.Date(c("2017-01-01","2019-01-01" )))) + 
+  geom_vline(xintercept = as.POSIXct(as.Date(c("2017-01-01","2018-01-01", "2019-01-01")))) +
+  scale_color_viridis(discrete=TRUE) 
+ p
+ 
+
+```
+
+### Rain over 7 days
+
+```{r rain_per_station, fig.height=10, fig.width=8}
+ p <- ggplot(filter(sample_table, location_label != "BL")) + 
+  geom_col(aes(x=date,y=Rain7, fill=monsoon)) + 
+  facet_grid(rows = vars(location)) +
+  xlim(as.POSIXct(as.Date(c("2017-01-01","2019-01-01" )))) + 
+  geom_vline(xintercept = as.POSIXct(as.Date(c("2017-01-01","2018-01-01", "2019-01-01")))) +
+  scale_fill_viridis(discrete=TRUE) 
+ p
+ 
+
+```
+
+## Average
+### Rain over 7 days
+```{r rain_mean_per_station}
+ rain <- sample_table %>% 
+   group_by(date, monsoon) %>%
+   summarise(Rain7_mean = mean(Rain7, na.rm=TRUE))
+ 
+ p <- ggplot(rain) + 
+  geom_point(aes(x=date,y=Rain7_mean, color=monsoon), size=5) +
+  xlim(as.POSIXct(as.Date(c("2017-01-01","2019-01-01" )))) + 
+  geom_vline(xintercept = as.POSIXct(as.Date(c("2017-01-01","2018-01-01", "2019-01-01")))) +
+  scale_color_viridis(discrete=TRUE) 
+ p
+ 
+```
+
+
+# Phyloseq analysis
+
+## Create phyloseq files for all taxa after filtering the data
+
+Filter the euk data to remove the low bootstraps values (threshold : bootstrap > 90% at the supergroup level) and create a phyloseq file
+
+Note the bootstrap threshold 90% for ASVs 
+
+
+
+### Filter the ASV table to remove low bootstraps
+```{r}
+  otu_table_euk_final <- otu_table_final %>% filter(supergroup_boot > 90)
+  otu_table_prok_final <- otu_table_final %>% filter(kingdom %in% c("Bacteria", "Archaea")) 
+  
+  otu_table_ps <- bind_rows(otu_table_euk_final, otu_table_prok_final) %>% 
+    arrange(otu_id)
+```
+
+### Create the phyloseq file
+
+```{r warning=FALSE}
+  otu_mat<- otu_table_ps %>%  select(otu=otu_id,matches("EC|PR|RM|SBW|STJ"),-species, -species_boot )
+  tax_mat<- otu_table_ps %>%  select(otu=otu_id,kingdom:species)
+  samples_df <- sample_table %>%  rename (sample=sample_id)
+  
+  row.names(otu_mat) <- otu_mat$otu
+  otu_mat <- otu_mat %>% select (-otu) 
+  row.names(tax_mat) <- tax_mat$otu
+  tax_mat <- tax_mat %>% select (-otu) 
+  row.names(samples_df) <- samples_df$sample
+  samples_df <- samples_df %>% select (-sample)
+  otu_mat <- as.matrix(otu_mat)
+  tax_mat <- as.matrix(tax_mat)
+  
+  OTU = otu_table(otu_mat, taxa_are_rows = TRUE)
+  TAX = tax_table(tax_mat)
+  samples = sample_data(samples_df)
+  
+  ps_all <- phyloseq(OTU, TAX, samples)
+  ps_all <- subset_samples(ps_all, sequence_quality == "good")
+
+```
+## Break up into photosynthetic and non-photosynthetic 
+* **Opisthokonta (Metazoa, Fungi) are removed**
+
+```{r}
+  cat("\nPhyloseq All \n========== \n")  
+  ps_all
+
+  ps_euk <- subset_taxa(ps_all,(kingdom %in% c("Eukaryota")))
+  ps_euk <- subset_taxa(ps_euk,!(supergroup %in% c("Opisthokonta")))
+  cat("\nPhyloseq Eukaryotes \n========== \n")  
+  ps_euk
+
+  ps_photo <- subset_taxa(ps_euk, (division %in% c("Chlorophyta", "Cryptophyta", "Rhodophyta",
+                                                            "Haptophyta", "Ochrophyta")) |
+                                        ((division ==  "Dinoflagellata") & (class != "Syndiniales")) |
+                                        (class == "Filosa-Chlorarachnea"))
+  cat("\nPhyloseq Photosynthetic Eukaryotes \n========== \n") 
+  ps_photo
+  
+  
+  ps_hetero <- subset_taxa(ps_euk, !(division %in% c("Chlorophyta", "Cryptophyta", "Rhodophyta",
+                                                            "Haptophyta", "Ochrophyta")) &
+                                        !((division ==  "Dinoflagellata") & !(class == "Syndiniales")) &
+                                        !(class == "Filosa-Chlorarachnea"))
+  cat("\nPhyloseq Heterotrophic Eukaryotes \n========== \n") 
+  ps_hetero
+  
+  ps_prok <- subset_taxa(ps_all,(kingdom %in% c("Bacteria", "Archaea")))
+  cat("\nPhyloseq Prokaryotes \n========== \n")  
+  ps_prok
+  
+```
+
+
+## Normalize number of reads in each sample using median sequencing depth.
+* ! If there no cells do not transform, just set column to 0 
+`function(x, t=total_hetero) (if(sum(x) > 0){ t * (x / sum(x))} else {x})`
+
+
+```{r}
+
+# First define a function to normalize
+   
+ps_normalize_median <- function (ps, title) {
+  ps_median = median(sample_sums(ps))
+  cat(sprintf("\nThe median number of reads used for normalization of %s is  %.0f", title, ps_median))
+  normalize_median = function(x, t=ps_median) (if(sum(x) > 0){ t * (x / sum(x))} else {x})
+  ps = transform_sample_counts(ps, normalize_median)
+  cat(str_c("\nPhyloseq ",title, "\n========== \n") )
+  print(ps)
+}
+
+# Apply to all the phyloseq files
+  ps_all = ps_normalize_median(ps_all, "all")
+  ps_euk = ps_normalize_median(ps_euk, "eukaryotes (auto+hetero)")
+  ps_photo = ps_normalize_median(ps_photo, "eukaryotes autotrophs")
+  ps_hetero = ps_normalize_median(ps_hetero, "eukaryotes heterotrophs")
+  ps_prok = ps_normalize_median(ps_prok, "prokaryotes")
+  
+```
+
+## Phyloseq files for abundant taxa
+* Remove taxa that are < 0.10 (euks) and <0.05 (proks) in any given sample
+* Normalize again...
+
+```{r}
+
+ps_abundant <- function(ps,contrib_min=0.1, title){
+     total_per_sample <- max(sample_sums(ps))
+     ps <- filter_taxa(ps, function(x) sum(x > total_per_sample*contrib_min) > 0, TRUE)
+     ps <- ps_normalize_median(ps, title)
+}
+
+  cat("Remove taxa in low abundance \n\n")
+  ps_all_abundant = ps_abundant(ps_all,contrib_min=0.05, "All")  
+  ps_euk_abundant = ps_abundant(ps_euk,contrib_min=0.1, "eukaryotes (auto+hetero)")
+  ps_photo_abundant = ps_abundant(ps_photo,contrib_min=0.1, "eukaryotes autotrophs")
+  ps_hetero_abundant = ps_abundant(ps_hetero,contrib_min=0.1, "eukaryotes heterotrophs")
+  ps_prok_abundant = ps_abundant(ps_prok,contrib_min=0.05, "prokaryotes")
+
+```
+
+
+## Create a list for the auto and hetero phyloseq files
+
+```{r}
+  ps_list <- list(ps=c(ps_prok,  ps_euk, ps_photo ), 
+                  title = c( "Prokaryotes - all OTUs", 
+                             "Eukaryotes - Auto and Hetero - all OTUs", 
+                             "Eukaryotes - Autotrophs - all OTUs"))
+  ps_list_abundant <- list(ps=c( ps_prok_abundant, ps_euk_abundant, ps_photo_abundant), 
+                           title = c( "Prokaryotes - abundant OTUs (> 5%)", 
+                                      "Eukaryotes - Auto + Hetero - abundant OTUs (> 10%)",
+                                      "Eukaryotes - Autotrophs - abundant OTUs (> 10%)"))
+```
+
+## Create tabular files for other plots
+
+```{r}
+  ps_to_long <- function(ps) {
+    otu_df <- data.frame(otu_table(ps)) %>% 
+      rownames_to_column(var = "otu_id")
+    taxo_df <- data.frame(tax_table(ps))%>% 
+      rownames_to_column(var = "otu_id")
+    otu_df <- left_join(taxo_df, otu_df)
+    otu_df <- gather(otu_df, "sample","n_seq" ,contains("X")) # All samples contain X
+    metadata_df <- data.frame(sample_data(ps)) %>% 
+      rownames_to_column(var = "sample")
+    otu_df <- left_join(otu_df, metadata_df)
+  }
+
+  long_all <- ps_to_long(ps_all)
+  long_euk <- ps_to_long(ps_euk) 
+  long_photo <- ps_to_long(ps_photo)
+  long_euk_abundant <- ps_to_long(ps_euk_abundant)
+  long_photo_abundant <- ps_to_long(ps_photo_abundant)
+  long_prok <- ps_to_long(ps_prok)
+```
+
+
+## Treemaps at division and class levels
+
+
+### Define function to draw treemaps
+
+```{r}
+ treemap_gg_dv <- function(df, group1, group2, title) {
+     group1 <- enquo(group1)
+     group2 <- enquo(group2)
+     df <- df %>% group_by(!!group1, !!group2) %>%  summarise(n_seq=sum(n_seq))
+     g_treemap <- ggplot(df, aes(area = n_seq, fill = !!group2, 
+                                              label = !!group2, subgroup = !!group1)) +
+        ggtitle(title) +
+        treemapify::geom_treemap() +
+        treemapify::geom_treemap_subgroup_border() +
+        treemapify::geom_treemap_text(colour = "black", place = "topleft", reflow = T, 
+                                      padding.x =  grid::unit(3, "mm"), 
+                                      padding.y = grid::unit(3, "mm") ) +
+        treemapify::geom_treemap_subgroup_text(place = "centre", grow = T, alpha = 0.5, colour =
+                             "white", fontface = "italic", min.size = 0) +
+        scale_fill_viridis(discrete=TRUE) +
+        theme(legend.position="none", plot.title = element_text(size = 16, face = "bold"))
+     print(g_treemap)
+     return(g_treemap)
+}
+```
+
+### Do the individual treemaps
+
+```{r treemap, fig.height=8, fig.width=8}
+
+
+
+
+  array_treemap_all <- list()
+  array_treemap_by_kingdom <- list()
+  
+  for (one_strait in c("Singapore", "Johor")) {
+   
+  label <- str_c(one_strait,"-all") 
+
+  array_treemap_all[[label]] <- treemap_gg_dv(filter(long_all, strait == one_strait), 
+                                 kingdom, supergroup, str_c("", one_strait )) 
+
+  label <- str_c(one_strait,"-arch") 
+  array_treemap_by_kingdom[[label]] <- treemap_gg_dv(filter(long_prok, strait == one_strait & kingdom=="Archaea"),
+                                          division, class, str_c("A - Archaea - ", one_strait ))
+  
+  label <- str_c(one_strait,"-bact") 
+  array_treemap_by_kingdom[[label]] <- treemap_gg_dv(filter(long_prok, strait == one_strait & kingdom=="Bacteria"),
+                                          division, class, str_c("B - Bacteria - ", one_strait ))
+  
+     
+  label <- str_c(one_strait,"-euks") 
+  array_treemap_by_kingdom[[label]] <- treemap_gg_dv(filter(long_euk, strait == one_strait), 
+                                          division, class, str_c("C - All Eulkaryotes - ", one_strait )) 
+  
+   
+  # label <- str_c(one_strait,"-photeuks") 
+  # array_treemap[[label]] <- treemap_gg_dv(filter(long_photo, strait == one_strait), 
+  #                                         division, class, str_c("D - Photosynthetic Eukaryotes - ", one_strait ))
+  # 
+   
+
+  # treemap_dv(filter(long_euk, strait == one_strait), 
+  #            c("division", "class"),"n_seq", str_c("All euks - ", one_strait ))
+  # treemap_dv(filter(long_photo, strait == one_strait),
+  #            c("division", "class"),"n_seq",str_c("Photo euks", one_strait ))
+  # treemap_dv(filter(long_prok, strait == one_strait & kingdom=="Bacteria"),
+  #            c("division", "class"),"n_seq",str_c("Bacteria - ", one_strait ))
+  # treemap_dv(filter(long_prok, strait == one_strait & kingdom=="Archaea"),
+  #            c("division", "class"),"n_seq",str_c("Archaea - ", one_strait ))
+  }
+
+
+```
+
+### FIG - Arrange the different treemaps in a grid and save
+
+```{r eval=TRUE, fig.height=10, fig.width=5}
+# Main Fig, all groups
+fig_grid_treemap_all <- gridExtra::grid.arrange(grobs=array_treemap_all, 
+                                                ncol=2, nrow=1, clip=FALSE, 
+                                                padding = unit(0, "line"),
+                                                as.table = FALSE) 
+
+fig_grid_treemap_all
+
+ggsave("../fig/fig_treemap_all.png", fig_grid_treemap_all, height = 5, width = 10, dpi = 300)
+
+
+# Supp Fig, by kingdom
+
+fig_grid_treemap_by_kingdom <- gridExtra::grid.arrange(grobs=array_treemap_by_kingdom, 
+                                                      ncol=2, nrow=3, clip=FALSE, 
+                                                      padding = unit(0, "line"),
+                                                      as.table = FALSE) 
+
+fig_grid_treemap_by_kingdom
+
+ggsave("../fig/fig_treemap_separate.png", fig_grid_treemap_by_kingdom, height = 15, width = 10, dpi = 300)
+   
+```
+
+
+
+## Most abundant eukaryote species
+
+```{r abundant_species, fig.height=6, fig.width=8}
+  array_euk <- list()
+
+  for (one_strait in c("Singapore", "Johor")) {
+
+  long_euk_species <- filter(long_euk, strait == one_strait) %>%
+    mutate(species_label = str_c(class, species, sep="-")) %>% 
+    group_by(division, class, species, species_label) %>% 
+    summarize(n_seq = sum(n_seq)) %>% 
+    arrange(desc(n_seq)) %>% 
+    ungroup()
+
+  array_euk[[one_strait]] <- ggplot(top_n(long_euk_species, 20, n_seq)) + 
+    geom_col(aes(x=reorder(species, n_seq), y=n_seq, fill=division)) + 
+    coord_flip() +
+    xlab("") + ylab("Number of reads") +
+    scale_fill_manual(values = division_euk_colors) +
+    ggtitle(one_strait) +
+    theme_bw() +
+    theme(plot.title = element_text(size=22, hjust = 0.5)) +
+    # theme(axis.text=element_text(size=14), legend.text = element_text(size=16)) + 
+    theme(legend.position = "top", legend.box = "vertical") +
+    guides(fill = guide_legend(title.position="top", 
+                               ncol = 4, nrow = 2, byrow = FALSE))
+  
+  print(array_euk[[one_strait]])
+  
+  }
+
+
+```
+
+## Most abundant prokaryotes taxo6 (~ genus)
+Taxo6 (Family) corresponds to the genus for bacteria... A bit confusing, will need to be fixed
+
+```{r abundant_genus_prok, fig.height=6, fig.width=10}
+  array_prok <- list()
+
+  for (one_strait in c("Singapore", "Johor")) {
+
+  long_prok_genus <- filter(long_prok, strait == one_strait) %>%
+    mutate(genus_label = str_c(division, family, sep="-")) %>% 
+    group_by(supergroup, division, class, family, genus_label) %>% 
+    summarize(n_seq = sum(n_seq)) %>% 
+    arrange(desc(n_seq)) %>% 
+    ungroup()
+
+  array_prok[[one_strait]] <- ggplot(top_n(long_prok_genus, 20, n_seq)) + 
+    geom_col(aes(x=reorder(genus_label, n_seq), y=n_seq, fill=supergroup)) + 
+    coord_flip() +
+    xlab("") + ylab("Number of reads") +
+    scale_fill_manual(values = supergroup_colors) +
+    ggtitle(one_strait) +
+    theme_bw() +
+    theme(plot.title = element_text(size=22, hjust = 0.5)) +
+    # theme(axis.text=element_text(size=14), legend.text = element_text(size=16)) + 
+    theme(legend.position = "top", legend.box = "vertical") +
+    guides(fill = guide_legend(title.position="top", 
+                               ncol = 4, nrow = 2, byrow = FALSE))
+  
+  print(array_prok[[one_strait]])
+  
+  }
+
+
+```
+
+## FIG - Save as Grid
+```{r}
+   grid_fig <-  cowplot::plot_grid(array_prok[["Singapore"]],array_prok[["Johor"]], 
+                                   array_euk[["Singapore"]],array_euk[["Johor"]], align="hv",
+                                   # labels=c("A","B", "C", "D"),
+                                   ncol=2, nrow=2, label_size = 20)
+
+
+   ggsave("../fig/fig_top_all.png", grid_fig, 
+          height = 15, width = 20, dpi = 300)
+
+```
+
+
+
+## Bar plot of divisions per station
+
+
+Note: some stations are completely missing heterotrophs (Only Opistokonta)
+
+```{r bar_plot_division, fig.height=15, fig.width=10}
+
+for (i in 1:3) {
+  p <- plot_bar(ps_list$ps[[i]], x="sample_label", fill = "division") + 
+       geom_bar(aes(color=division, fill=division), stat="identity", position="stack") + 
+       ggtitle(str_c("Division level - ",ps_list$title[[i]]))  +
+       theme(axis.text.y = element_text(size=10)) +
+       theme(axis.text.x = element_text(angle=0, hjust = 0.5)) +
+       coord_flip() +
+      scale_fill_viridis(discrete=TRUE) + scale_color_viridis(discrete=TRUE)
+  print(p)
+}
+```
+
+## Bar plot of class per station
+
+Only consider the abundant taxa
+
+```{r bar_plot_class, fig.height=15, fig.width=10}
+
+for (i in 1:3) {
+  p <- plot_bar(ps_list_abundant$ps[[i]], x="sample_label", fill = "class") + 
+       geom_bar(aes(color=class, fill=class), stat="identity", position="stack") + 
+       ggtitle(str_c("Class level - ",ps_list_abundant$title[[i]])) +
+       theme(axis.text.y = element_text(size=10))+
+       theme(axis.text.x = element_text(angle=0, hjust = 0.5)) +
+       coord_flip() +
+      scale_fill_viridis(discrete=TRUE) + scale_color_viridis(discrete=TRUE)
+  print(p)
+}
+```
+
+## Compare by Straight, Site, Moonsoon (abundant OTUs only)
+
+```{r bar_plot_factors, fig.height=4, fig.width=6, message=FALSE, warning=FALSE}
+for (factor in c("strait", "location", "monsoon")) {  
+ for (i in 1:3) {
+  ps_aggregate <- merge_samples(ps_list_abundant$ps[[i]], factor)
+  ps_aggregate <- transform_sample_counts(ps_aggregate, function(x) 100*(x/sum(x)))
+  p <- plot_bar(ps_aggregate, fill = "division") + 
+      geom_col(aes(color=division, fill=division)) +
+      ggtitle(str_c(ps_list_abundant$title[[i]], " - ", factor)) +
+      theme(axis.text.x = element_text(angle = 90, vjust=0.5, hjust=1)) +
+      ylab("%")+
+      scale_fill_viridis(discrete=TRUE) + scale_color_viridis(discrete=TRUE)
+  print(p)
+ }
+}
+```
+
+## Compare by Moonsoon in Singapore straight (abundant OTUs)
+
+```{r bar_plot_monsoon, fig.height=4, fig.width=6, message=FALSE, warning=FALSE}
+
+ for (i in 1:3) {
+  ps_aggregate <- subset_samples(ps_list_abundant$ps[[i]], strait=="Singapore") 
+  ps_aggregate <- merge_samples(ps_aggregate,"monsoon")
+  ps_aggregate <- transform_sample_counts(ps_aggregate, function(x) 100*(x/sum(x)))
+  p <- plot_bar(ps_aggregate, fill = "division") + 
+      geom_col(aes(color=division, fill=division)) +
+      ggtitle(str_c(ps_list_abundant$title[[i]], " - ", factor)) +
+      theme(axis.text.x = element_text(angle = 90, vjust=0.5, hjust=1)) +
+      ylab("%")+
+      scale_fill_viridis(discrete=TRUE) + scale_color_viridis(discrete=TRUE)
+  print(p)
+ }
+```
+
+
+## Time series (abundant OTUs) aggregated for Singapore strait only
+
+```{r bar_plot_date, fig.height=4, fig.width=6, message=FALSE, warning=FALSE}
+for (factor in c("date")) {  
+ for (i in 1:3) {
+  ps_aggregate <- subset_samples(ps_list_abundant$ps[[i]], strait=="Singapore")
+  ps_aggregate <- merge_samples(ps_aggregate, "date")
+  ps_aggregate <- transform_sample_counts(ps_aggregate, function(x) 100*(x/sum(x)))
+  p <- plot_bar(ps_aggregate, fill = "division") + 
+      geom_col(aes(color=division, fill=division)) +
+      ggtitle(str_c(ps_list_abundant$title[[i]], " - ", factor)) +
+      theme(axis.text.x = element_text(angle = 90, vjust=0.5, hjust=1)) +
+      ylab("%")+
+      scale_fill_viridis(discrete=TRUE) + scale_color_viridis(discrete=TRUE)
+  print(p)
+ }
+}
+```
+
+## Time series (abundant OTUs) - Division level
+
+```{r bar_plot_date_division, fig.height=6, fig.width=12, message=FALSE, warning=FALSE}
+ for (i in 1:3) {
+  ps_plot <- ps_list_abundant$ps[[i]]
+  p <- plot_bar(ps_plot, x="date", fill = "division")+ 
+      facet_grid(rows = vars(location)) + 
+      geom_col(aes(color=division, fill=division)) +
+      ggtitle(str_c(ps_list_abundant$title[[i]], " - Date")) +
+      theme(axis.text.x = element_text(angle = 45, vjust=0.5, hjust=1)) +
+      ylab("%") +
+      xlim(as.POSIXct(as.Date(c("2017-01-01","2019-01-01" )))) + 
+      geom_vline(xintercept = as.POSIXct(as.Date(c("2017-01-01","2018-01-01", "2019-01-01"))))+
+      scale_fill_viridis(discrete=TRUE) + scale_color_viridis(discrete=TRUE)
+  print(p)
+ }
+```
+
+
+## Time series (abundant OTUs) - Genus level for Chlorophyta
+
+```{r bar_plot_date_genus, fig.height=6, fig.width=12, message=FALSE, warning=FALSE}
+ for (i in 3:3) {
+  ps_plot <- subset_taxa(ps_list_abundant$ps[[i]], division == "Chlorophyta")
+  p <- plot_bar(ps_plot, x="date", fill = "genus")+ 
+      facet_grid(rows = vars(location)) + 
+      geom_col(aes(color=genus, fill=genus)) +
+      ggtitle(str_c(ps_list_abundant$title[[i]], " - Date")) +
+      theme(axis.text.x = element_text(angle = 45, vjust=0.5, hjust=1)) +
+      ylab("%") +
+      xlim(as.POSIXct(as.Date(c("2017-01-01","2019-01-01" )))) + 
+      geom_vline(xintercept = as.POSIXct(as.Date(c("2017-01-01","2018-01-01", "2019-01-01"))))+
+      scale_fill_viridis(discrete=TRUE) + scale_color_viridis(discrete=TRUE)
+  print(p)
+ }
+```
+
+
+## Main species for each division (Eukaryotes - Autrotrophs)
+
+```{r bar_plot_species, fig.height=8, fig.width=8}
+p <- list()
+for (one_division in c("Chlorophyta", "Dinoflagellata", "Ochrophyta", "Cryptophyta", "Haptophyta")){
+  ps_subset <- subset_samples(ps_photo_abundant, strait != "Raffles Mari")
+  ps_subset <- subset_taxa(ps_subset, division %in% one_division)
+  p[[one_division]] <- plot_bar(ps_subset, x="species") + 
+    facet_grid(rows = vars(strait), cols=vars(monsoon)) +
+    geom_col() +
+    theme(axis.text.x = element_text(angle = 90, vjust=0.5, hjust=1)) +
+    ggtitle(str_c(one_division," - Abundant OTUs"))+
+    coord_flip()
+  print(p[[one_division]])  
+}
+    # grid_array <- list(p[["Chlorophyta"]],p[["Ochrophyta"]])
+    # grid_layout <- rbind(c(NA,1,1,1,1,1),
+    #                      c( 2,2,2,2,2,2))
+    # grid_fig <- gridExtra::grid.arrange(grobs=grid_array, 
+    #                                              layout_matrix=grid_layout, clip=FALSE, 
+    #                                              padding = unit(0, "line"),
+    #                                             as.table = FALSE) 
+   grid_fig <-  cowplot::plot_grid(p[["Chlorophyta"]],p[["Ochrophyta"]], labels=c("A","B"), align="v", nrow=2)
+   ggsave("../fig/Fig_Species_Moonsoon.png", grid_fig, height = 10, width = 8, dpi = 300)
+```
+
+## Heatmaps
+
+### Abundant OTUs
+
+* Data are agglomarated at the genus level. Use function `tax_glom`
+
+```{r heatmaps, fig.height=10, fig.width=10}
+
+for (i in c(1)) {
+  ps_heat <- tax_glom(ps_list_abundant$ps[[i]],taxrank = "family")
+  p <- plot_heatmap(ps_heat, method = "NMDS", distance = "bray", 
+               taxa.label = "family",  taxa.order="division",
+               sample.label = "sample_label", sample.order="sample_label",
+               low="beige", high="red", na.value="beige", 
+               title=ps_list_abundant$title[[i]])
+  print(p)
+}
+  
+
+for (i in 2:3) {
+  
+  ps_heat <- tax_glom(ps_list_abundant$ps[[i]],taxrank = "genus")
+  p <- plot_heatmap(ps_heat, method = "NMDS", distance = "bray", 
+               taxa.label = "genus",  taxa.order="division",
+               sample.label = "sample_label", sample.order="sample_label",
+               low="beige", high="red", na.value="beige", 
+               title=ps_list_abundant$title[[i]])
+  print(p)
+}
+
+
+```
+
+### Chlorophyta at species level
+All ASVs considered (not only abundant)
+
+```{r heatmap-chlorophyta, fig.height=10, fig.width=15}
+
+  ps_heat <- subset_taxa(ps_photo, division == "Chlorophyta")
+  
+  ps_heat <- tax_glom(ps_heat,taxrank = "species")
+
+  p <- plot_heatmap(ps_heat, method = "NMDS", distance = "bray", 
+               taxa.label = "species",  taxa.order="species",
+               sample.label = "sample_label", sample.order="sample_label",
+               low="beige", high="red", na.value="beige",trans = scales::log10_trans(), 
+               title="Mamiellophyceae in Singapore")
+  print(p)
+  
+
+```
+
+### Mamiello (Only Bathy, Ostreo and Micromonas) at genus level
+All ASVs considered (not only abundant)
+
+```{r heatmap_mamiello_1, fig.height=4, fig.width=10}
+
+  ps_heat <- subset_taxa(ps_photo, genus %in% c("Ostreococcus", "Bathycoccus", "Micromonas"))
+  
+  ps_heat <- tax_glom(ps_heat,taxrank = "genus")
+
+  p <- plot_heatmap(ps_heat, method = "NMDS", distance = "bray", 
+               taxa.label = "genus",  taxa.order="genus",
+               sample.label = "sample_label", sample.order="sample_label",
+               low="beige", high="red", na.value="beige",trans = scales::log_trans(10), 
+               title="Mamiellophyceae in Singapore")
+  print(p)
+  
+
+```
+
+### Mamiello (Only Bathy, Ostreo and Micromonas) at species level
+All ASVs considered (not only abundant)
+
+```{r heatmap_mamiello, fig.height=4, fig.width=10}
+
+  ps_heat <- subset_taxa(ps_photo, genus %in% c("Ostreococcus", "Bathycoccus", "Micromonas"))
+  
+  ps_heat <- tax_glom(ps_heat,taxrank = "species")
+
+  p <- plot_heatmap(ps_heat, method = "NMDS", distance = "bray", 
+               taxa.label = "species",  taxa.order="species",
+               sample.label = "sample_label", sample.order="sample_label",
+               low="beige", high="red", na.value="beige",trans = scales::log_trans(10), 
+               title="Mamiellophyceae in Singapore")
+  print(p)
+  
+
+```
+
+
+## NMDS
+
+
+
+Sample removed because they were pulling the NMDS
+* PR2X16XS21 it has a single eukaryote (diatom bloom )
+* RM13XS36 cause problem for bacteria
+* PR11XS25 cause problem for hetero euks
+* SBW11XS26 cause problem for hetero euks
+* SBW13XS37 cause problem for hetero euks
+* RM13XS36 cause problem for hetero euks
+
+
+### Define function
+
+* See comments inside functions (saved plots are different from displayed plots)
+
+```{r}
+ps_do_nmds <- function(ps_list) {
+
+    plot_array <- list()
+    
+    for (i in 1:3) {
+      ps_nmds <- ps_list$ps[[i]]
+      
+      # Remove samples with no reads
+      ps_nmds <- prune_samples(sample_sums(ps_nmds)>0, ps_nmds)
+      
+      # Remove samples from Raffles
+      ps_nmds <- subset_samples(ps_nmds, !(str_detect(strait, "Raffles Mari|Johor")))
+      
+      # Remove samples that caused problems (1= prok, 2=euk, 3=euk auto)
+      if (i==1) {  ps_nmds <- prune_samples(!(sample_names(ps_nmds) %in% c("RM13XS36")), ps_nmds) } # Prokaryotes
+      if (i %in% c(2,3)) {  ps_nmds <- prune_samples(!(sample_names(ps_nmds) %in% c("PR2X16SXS21")), ps_nmds)} # Eukaryotes
+      if (i==4) {  ps_nmds <- prune_samples(!(sample_names(ps_nmds) %in% c("PR11XS25", "SBW11XS26", "SBW13XS37")), ps_nmds) } # Heterotrophs not used
+       
+      singa.ord <- ordinate(ps_nmds, "NMDS", "bray")
+      
+      # Fit environmental parameters
+       env_var <- sample_variables(ps_nmds)
+       env_matrix <- get_variable(ps_nmds,c("Chl", "Temperature", "Salinity", "Phosphate", "Silicate", "DIN", "BAC") )
+       env_fit <- vegan::envfit(singa.ord, env = env_matrix, perm = 999, na.rm=TRUE)
+       env_arrows <- data.frame(env_fit$vectors$arrows*sqrt(env_fit$vectors$r)) %>% rownames_to_column(var="parameter")
+      
+      
+      nmds_samples <- data.frame(singa.ord[["points"]], 
+                                 get_variable(ps_nmds,c("monsoon", "strait", "location", "location_label") ) ) %>%
+                      rownames_to_column(var="sample") 
+
+      # Factor to move the labels
+      nudge_x <- max(nmds_samples$MDS1)*0.08
+      nudge_y <- max(nmds_samples$MDS2)*0.08
+      xy_max = max(c(nmds_samples$MDS1, nmds_samples$MDS2))*1.5
+      xy_min = min(c(nmds_samples$MDS1, nmds_samples$MDS2))*1.5
+      factor <- 3 # for vectors for euks
+      if (i==1) {factor <- 1.5} # for vectors for proks
+      print(factor)
+      
+        p <- plot_ordination(ps_nmds, singa.ord, type="samples", color="monsoon",
+                      shape="strait", title=ps_list$title[[i]]) +
+           geom_point(aes(shape=strait, color=monsoon), size=3.5)  +
+           scale_color_viridis(discrete = TRUE) +
+           scale_shape_manual(values = c(15,16)) +
+           geom_text(aes(label=location_label, color=monsoon),
+                     nudge_x=nudge_x, nudge_y=nudge_y,
+                     check_overlap = TRUE, size=2) +
+           theme_bw() +
+           geom_segment(data=env_arrows, aes(x=0,xend=NMDS1*factor, y=0,yend=NMDS2*factor), inherit.aes = FALSE,
+                        arrow = arrow(length = unit(0.5, "cm")), colour = "black")  +
+           geom_text(data=env_arrows, aes(x=NMDS1*factor, y=NMDS2*factor, label=parameter), inherit.aes = FALSE ,
+                     hjust=-0.2, vjust=-0.2, size=3) 
+      print(singa.ord)
+      plot_array[[i]] <- p
+      print(p)
+      
+      # The following lines can be used if you want to avoid using the pjhyloseq functions to plot the data.
+      # Notes : - must use inherit.aes = FALSE to add some extra layers
+      #         - the saved plots have a different scale for the added layer than the displaued plot can figure out 
+           # ggplot()+
+           # coord_fixed() + 
+           # xlim(xy_min, xy_max) + ylim(xy_min, xy_max) +
+           # geom_point(data=nmds_samples, aes(x=MDS1, y=MDS2, shape=strait, color=monsoon), size=5)  +
+           # geom_text(data=nmds_samples, aes(x=MDS1, y=MDS2, label=location_label, color=monsoon),
+           #           nudge_x=nudge_x, nudge_y=nudge_y,
+           #           check_overlap = FALSE, size=2) +           
+           # ggtitle(ps_list$title[[i]]) +
+      
+       p <- plot_ordination(ps_nmds, singa.ord, type="taxa", color="division", title=ps_list$title[[i]]) +
+       scale_color_viridis(discrete = TRUE) +
+       geom_point(size=3) +
+       theme_bw() +
+       geom_segment(data=env_arrows, aes(x=0,xend=NMDS1*factor, y=0,yend=NMDS2*factor), inherit.aes = FALSE,
+                    arrow = arrow(length = unit(0.5, "cm")), colour = "black")  +
+       geom_text(data=env_arrows, aes(x=NMDS1*factor, y=NMDS2*factor, label=parameter), inherit.aes = FALSE ,
+                 hjust=-0.2, vjust=-0.2, size=3) 
+       
+       print(p)
+       plot_array[[i+3]] <- p
+    }
+  return(plot_array)
+  }
+```
+
+### All OTUs 
+
+```{r nmds_all, fig.height=8, fig.width=8}
+
+  plot_array_all <- ps_do_nmds(ps_list)  
+  
+```
+
+### Abundant OTUs
+```{r  nmds_abundant, fig.height=8, fig.width=8}
+
+  plot_array_abundant <- ps_do_nmds(ps_list_abundant)   
+
+```
+### MSDS graph
+
+```{r}
+    grid_fig <- cowplot::plot_grid(plot_array_abundant[[1]], plot_array_abundant[[4]], 
+                                   plot_array_abundant[[3]], plot_array_abundant[[6]], ncol=2,
+                                   labels = c("A", "B", "C", "D"),
+                                   align="hv", label_size = 20)
+   grid_fig
+   ggsave("../fig/Fig_NMDS-Singapore.png", grid_fig, height = 12, width = 18, dpi = 300)
+```
+
+
+
+## Network analysis
+
+```{r network, fig.height=6, fig.width=10}
+
+for (i in 1:3) {
+  
+  ps_nmds <- ps_list_abundant$ps[[i]]
+  
+  # Remove samples with no reads
+  ps_nmds <- prune_samples(sample_sums(ps_nmds)>0, ps_nmds)
+  
+  # Remove samples that caused problems (1= prok, 2=euk, 3=euk auto)
+  if (i==1) {  ps_nmds <- prune_samples(!(sample_names(ps_nmds) %in% c("RM13XS36")), ps_nmds) } # Prokaryotes
+  if (i %in% c(2,3)) {  ps_nmds <- prune_samples(!(sample_names(ps_nmds) %in% c("PR2X16SXS21")), ps_nmds)} # Eukaryotes
+  if (i==4) {  ps_nmds <- prune_samples(!(sample_names(ps_nmds) %in% c("PR11XS25", "SBW11XS26", "SBW13XS37")), ps_nmds) } # Heterotrophs not used
+
+  if (i > 1) {
+  p <- plot_net(ps_nmds, distance = "(A+B-2*J)/(A+B)", type = "taxa", 
+           maxdist = 0.4, color="class", point_label="genus") +
+       ggtitle(ps_list_abundant$title[[i]])
+  }
+
+  else {
+  p <- plot_net(ps_nmds, distance = "(A+B-2*J)/(A+B)", type = "taxa", 
+           maxdist = 0.4, color="class", point_label="family") +
+       ggtitle(ps_list_abundant$title[[i]])
+  }
+
+  print(p)
+}
+
+```
+
+
+

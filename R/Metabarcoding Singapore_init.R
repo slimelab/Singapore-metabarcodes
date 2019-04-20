@@ -37,10 +37,13 @@
   pr2_taxo_levels <- str_to_lower(pr2_taxo_levels_capital)
   
 # Color for divisions
-  colors <- viridis_pal()(25)
-  division_colors <- c("Haptophyta" = colors[6], "Dinoflagellata" = colors[1], "Chlorophyta" = colors[21], 
+  colors <- viridis_pal(option = "B")(25)
+  division_photo_colors <- c("Haptophyta" = colors[6], "Dinoflagellata" = colors[1], "Chlorophyta" = colors[21], 
                        "Ochrophyta" = colors[16], "Cryptophyta" = colors[25])
-  # scales::show_col(viridis_pal()(25))
+  division_euk_colors <- c("Cercozoa" = colors[1], "Radiolaria" =  colors[5], "Dinoflagellata" = colors[10], 
+                           "Chlorophyta" = colors[19], "Ochrophyta" = colors[22], 
+                           "Haptophyta" = colors[13], "Cryptophyta" = colors[25])
+  scales::show_col(viridis_pal(option = "B")(25))
 
    supergroup_colors <- c("Actinobacteria" = colors[1], "Bacteria" = colors[4], "Bacteroidetes" = colors[8], 
                        "Cyanobacteria" = colors[12], "Marinimicrobia (SAR406 clade)" = colors[16], "Proteobacteria"= colors[20],
