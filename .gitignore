@@ -23,9 +23,9 @@ qiime/otu_table_98_final.tsv
 *.qzv
 *.biom
 *.docx
-qiime/*
+qiime*
 README.md
-metadata/*
+metadata*
 README_Singapore_metabarcodes.md
 archives
 README_Singapore_metabarcodes_01.md
