@@ -40,9 +40,11 @@
   colors <- viridis_pal(option = "B")(25)
   division_photo_colors <- c("Haptophyta" = colors[6], "Dinoflagellata" = colors[1], "Chlorophyta" = colors[21], 
                        "Ochrophyta" = colors[16], "Cryptophyta" = colors[25])
-  division_euk_colors <- c("Cercozoa" = colors[1], "Radiolaria" =  colors[5], "Dinoflagellata" = colors[10], 
+  division_euk_colors <- c("Cercozoa" = colors[1], "Radiolaria" =  colors[5], "Dinoflagellata" = colors[10], "Ciliophora" = colors[7],
                            "Chlorophyta" = colors[19], "Ochrophyta" = colors[22], 
                            "Haptophyta" = colors[13], "Cryptophyta" = colors[25])
+  division_kingdom_colors <- c("Archaea" = colors[3], "Bacteria" =  colors[13], "Eukaryota" = colors[21])
+  
   scales::show_col(viridis_pal(option = "B")(25))
 
    supergroup_colors <- c("Actinobacteria" = colors[1], "Bacteria" = colors[4], "Bacteroidetes" = colors[8], 

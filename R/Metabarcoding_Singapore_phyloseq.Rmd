@@ -20,6 +20,8 @@ output:
 
 * Create Phyloseq file from samples, metadata and OTU table (read from Excel file)
 
+* https://bioconductor.org/help/course-materials/2017/BioC2017/Day1/Workshops/Microbiome/MicrobiomeWorkflowII.html#abstract
+
 # Initialize
 
 This file defines all the necessary libraries and variables
@@ -63,13 +65,19 @@ This file defines all the necessary libraries and variables
   sample_table <- sample_table %>% 
     left_join(metadata_table) %>%
     left_join(station_table) %>% 
-    mutate(sample_label = str_c(strait_label,location_label,
-                                monsoon,sprintf("%03d",day_number), 
+    mutate(sample_label = str_c(location_label,
+                                date,
+                                monsoon, 
                                 sep="_"))
 
 ```
 ### OTU table
 NOTE: The OTU table is read from Excel file
+
+The following editing has been done
+* Nanochloris changed to Picochlorum based on BLAST table
+* Ostreococcus sp. changed to O. lucimarinus based on the BLAST
+
 
 ```{r}
 # Read the OTU table
@@ -202,6 +210,10 @@ Note the bootstrap threshold 90% for ASVs
 ```
 
 ### Create the phyloseq file
+* Remove sequences with bad quality
+* Remove Metazoa
+* Remove Chloroplast
+
 
 ```{r warning=FALSE}
   otu_mat<- otu_table_ps %>%  select(otu=otu_id,matches("EC|PR|RM|SBW|STJ"),-species, -species_boot )
@@ -221,19 +233,23 @@ Note the bootstrap threshold 90% for ASVs
   TAX = tax_table(tax_mat)
   samples = sample_data(samples_df)
   
-  ps_all <- phyloseq(OTU, TAX, samples)
-  ps_all <- subset_samples(ps_all, sequence_quality == "good")
+  ps_all_raw <- phyloseq(OTU, TAX, samples)
+  
+# Filtering
+  ps_all_raw <- subset_samples(ps_all_raw, sequence_quality == "good")
+  ps_all_raw <- subset_taxa(ps_all_raw,!(division %in% c("Metazoa")))
+  ps_all_raw <- subset_taxa(ps_all_raw,!(class %in% c("Chloroplast")))  
 
 ```
 ## Break up into photosynthetic and non-photosynthetic 
-* **Opisthokonta (Metazoa, Fungi) are removed**
+
 
 ```{r}
   cat("\nPhyloseq All \n========== \n")  
+  ps_all <- ps_all_raw
   ps_all
 
   ps_euk <- subset_taxa(ps_all,(kingdom %in% c("Eukaryota")))
-  ps_euk <- subset_taxa(ps_euk,!(supergroup %in% c("Opisthokonta")))
   cat("\nPhyloseq Eukaryotes \n========== \n")  
   ps_euk
 
@@ -449,23 +465,40 @@ ggsave("../fig/fig_treemap_separate.png", fig_grid_treemap_by_kingdom, height = 
    
 ```
 
+## Most abundant taxa
 
-
-## Most abundant eukaryote species
+### Most abundant eukaryote species
 
 ```{r abundant_species, fig.height=6, fig.width=8}
+  df <- filter(long_euk, strait %in% c("Johor", "Singapore")) %>%
+    mutate(species_label = str_c(class, species, sep="-")) %>% 
+    group_by(division, class, species, species_label, strait) %>% 
+    summarize(n_seq = sum(n_seq)) %>% 
+    arrange(desc(n_seq)) %>%  
+    filter(n_seq > 0) %>% 
+    ungroup()
+
+  df_strait <- df %>%
+    select(species, strait) %>% 
+    group_by(species) %>% 
+    summarise(n_strait = n()) %>% 
+    ungroup()
+
+  df <- df %>% 
+    left_join(df_strait, by = c("species"="species")) %>% 
+    mutate(species = case_when(
+                            n_strait == 1 ~ str_c(species, " *"),
+                            TRUE  ~  species
+                          ) )
+
   array_euk <- list()
+
 
   for (one_strait in c("Singapore", "Johor")) {
 
-  long_euk_species <- filter(long_euk, strait == one_strait) %>%
-    mutate(species_label = str_c(class, species, sep="-")) %>% 
-    group_by(division, class, species, species_label) %>% 
-    summarize(n_seq = sum(n_seq)) %>% 
-    arrange(desc(n_seq)) %>% 
-    ungroup()
+  df_one <- filter(df, strait == one_strait) 
 
-  array_euk[[one_strait]] <- ggplot(top_n(long_euk_species, 20, n_seq)) + 
+  array_euk[[one_strait]] <- ggplot(top_n(df_one, 30, n_seq)) + 
     geom_col(aes(x=reorder(species, n_seq), y=n_seq, fill=division)) + 
     coord_flip() +
     xlab("") + ylab("Number of reads") +
@@ -485,22 +518,38 @@ ggsave("../fig/fig_treemap_separate.png", fig_grid_treemap_by_kingdom, height = 
 
 ```
 
-## Most abundant prokaryotes taxo6 (~ genus)
-Taxo6 (Family) corresponds to the genus for bacteria... A bit confusing, will need to be fixed
+### Most abundant prokaryotes taxo6 (~ genus)
 
 ```{r abundant_genus_prok, fig.height=6, fig.width=10}
+  df <- filter(long_prok, strait %in% c("Johor", "Singapore")) %>%
+    mutate(genus_label = str_c(division, family, sep="-")) %>% 
+    group_by(supergroup, division, class, family, genus_label, strait) %>% 
+    summarize(n_seq = sum(n_seq)) %>% 
+    arrange(desc(n_seq)) %>%  
+    filter(n_seq > 0) %>% 
+    ungroup()
+
+  df_strait <- df %>%
+    select(genus_label, strait) %>% 
+    group_by(genus_label) %>% 
+    summarise(n_strait = n()) %>% 
+    ungroup()
+
+  df <- df %>% 
+    left_join(df_strait) %>% 
+    mutate(genus_label = case_when(
+                            n_strait == 1 ~ str_c(genus_label, " *"),
+                            TRUE  ~  genus_label
+                          ) )
+
+
   array_prok <- list()
 
   for (one_strait in c("Singapore", "Johor")) {
 
-  long_prok_genus <- filter(long_prok, strait == one_strait) %>%
-    mutate(genus_label = str_c(division, family, sep="-")) %>% 
-    group_by(supergroup, division, class, family, genus_label) %>% 
-    summarize(n_seq = sum(n_seq)) %>% 
-    arrange(desc(n_seq)) %>% 
-    ungroup()
+  df_one <- filter(df, strait == one_strait) 
 
-  array_prok[[one_strait]] <- ggplot(top_n(long_prok_genus, 20, n_seq)) + 
+  array_prok[[one_strait]] <- ggplot(top_n(df_one, 30, n_seq)) + 
     geom_col(aes(x=reorder(genus_label, n_seq), y=n_seq, fill=supergroup)) + 
     coord_flip() +
     xlab("") + ylab("Number of reads") +
@@ -520,7 +569,7 @@ Taxo6 (Family) corresponds to the genus for bacteria... A bit confusing, will ne
 
 ```
 
-## FIG - Save as Grid
+### Most abundant taxa - Save as Grid
 ```{r}
    grid_fig <-  cowplot::plot_grid(array_prok[["Singapore"]],array_prok[["Johor"]], 
                                    array_euk[["Singapore"]],array_euk[["Johor"]], align="hv",
@@ -528,10 +577,114 @@ Taxo6 (Family) corresponds to the genus for bacteria... A bit confusing, will ne
                                    ncol=2, nrow=2, label_size = 20)
 
 
-   ggsave("../fig/fig_top_all.png", grid_fig, 
-          height = 15, width = 20, dpi = 300)
+   # ggsave("../fig/fig_top_all.png", grid_fig, 
+   #        height = 20, width = 20, dpi = 300)
 
 ```
+
+## Most abundant OTUs
+
+### Compute and plot separately Euk and Prok
+
+```{r abundant_OTUS, fig.height=12, fig.width=12}
+  df <- filter(long_all, strait %in% c("Johor", "Singapore")) %>%
+    mutate(otu_label = case_when (kingdom == "Eukaryota" ~ str_c(otu_id, species, sep="-"),
+                                  TRUE ~  str_c(otu_id, family, sep="-") )) %>% 
+    group_by(kingdom, supergroup, division, class, genus, species, otu_id, otu_label, strait) %>% 
+    summarize(n_seq = sum(n_seq)) %>% 
+    arrange(desc(n_seq)) %>%  
+    filter(n_seq > 0) %>% 
+    ungroup()
+
+  df_strait <- df %>%
+    select(otu_label, strait) %>% 
+    group_by(otu_label) %>% 
+    summarise(n_strait = n()) %>% 
+    ungroup()
+
+  df <- df %>% 
+    left_join(df_strait) %>% 
+    mutate(otu_label = case_when(
+                            n_strait == 1 ~ str_c(otu_label, " *"),
+                            TRUE  ~  otu_label
+                          ) )
+  
+  otu_strait <- df
+  
+  array_euk <- list()
+  array_prok <- list()
+  
+# Do plots
+
+  for (one_strait in c("Singapore", "Johor")) {
+
+# For euks
+
+  df_one <- filter(df, strait == one_strait & kingdom == "Eukaryota") 
+
+  array_euk[[one_strait]] <- ggplot(top_n(df_one, 30, n_seq)) + 
+    geom_col(aes(x=reorder(otu_label, n_seq), y=n_seq, fill=division)) + 
+    coord_flip() +
+    theme_bw() +
+    theme(axis.text.x = element_text(size = 16, angle = 0, hjust = 1, vjust = 1)) +
+    theme(axis.text.y = element_text(size = 16, angle = 0, hjust = 0, vjust = 0)) +
+    theme(legend.title = element_text(size = 24)) +
+    theme(legend.text = element_text(size = 16)) +
+    xlab("") + ylab("Number of reads") +
+    scale_fill_manual(values = division_euk_colors) +
+    ggtitle(one_strait)  +
+    theme(plot.title = element_text(size=22, hjust = 0.5)) +
+    # theme(axis.text=element_text(size=14), legend.text = element_text(size=16)) + 
+    theme(legend.position = "top", legend.box = "vertical") +
+    guides(fill = guide_legend(title.position="top", 
+                               ncol = 2, nrow = 4, byrow = FALSE))
+  
+  print(array_euk[[one_strait]])
+  
+# For proks
+
+  
+  df_one <- filter(df, strait == one_strait & kingdom != "Eukaryota") 
+
+  array_prok[[one_strait]] <- ggplot(top_n(df_one, 30, n_seq)) + 
+    geom_col(aes(x=reorder(otu_label, n_seq), y=n_seq, fill=supergroup)) + 
+    coord_flip() +
+    theme_bw() +
+    theme(axis.text.x = element_text(size = 16, angle = 0, hjust = 1, vjust = 1)) +
+    theme(axis.text.y = element_text(size = 16, angle = 0, hjust = 0, vjust = 0)) +
+    theme(legend.title = element_text(size = 24)) +
+    theme(legend.text = element_text(size = 16)) +
+    xlab("") + ylab("Number of reads") +
+    scale_fill_manual(values = supergroup_colors) +
+    ggtitle(one_strait)  +
+    theme(plot.title = element_text(size=22, hjust = 0.5)) +
+    # theme(axis.text=element_text(size=14), legend.text = element_text(size=16)) + 
+    theme(legend.position = "top", legend.box = "vertical") +
+    guides(fill = guide_legend(title.position="top", 
+                               ncol = 2, nrow = 4, byrow = FALSE))
+  
+  print(array_prok[[one_strait]])
+  
+  }
+
+
+```
+
+
+### FIG Most abundant ASVs - Save as Grid
+```{r}
+   grid_fig_ASV <-  cowplot::plot_grid(array_prok[["Singapore"]],array_prok[["Johor"]], 
+                                   array_euk[["Singapore"]],array_euk[["Johor"]], align="hv",
+                                   # labels=c("A","B", "C", "D"),
+                                   ncol=2, nrow=2, label_size = 20)
+
+
+   ggsave("../fig/fig_top_asv_all.png", grid_fig_ASV, 
+          height = 20, width = 20, dpi = 300)
+
+```
+
+
 
 
 
@@ -689,10 +842,11 @@ for (one_division in c("Chlorophyta", "Dinoflagellata", "Ochrophyta", "Cryptophy
     #                                              padding = unit(0, "line"),
     #                                             as.table = FALSE) 
    grid_fig <-  cowplot::plot_grid(p[["Chlorophyta"]],p[["Ochrophyta"]], labels=c("A","B"), align="v", nrow=2)
-   ggsave("../fig/Fig_Species_Moonsoon.png", grid_fig, height = 10, width = 8, dpi = 300)
+   # ggsave("../fig/Fig_Species_Moonsoon.png", grid_fig, height = 10, width = 8, dpi = 300)
 ```
 
 ## Heatmaps
+
 
 ### Abundant OTUs
 
@@ -783,6 +937,84 @@ All ASVs considered (not only abundant)
 ```
 
 
+### FIG - Most abundant OTUs in Johor vs Singapre and Prokaryotes vs Eukaryotes
+
+
+```{r heatmaps_OTUs, fig.height=10, fig.width=14}
+
+heat_prok <- list()
+heat_euk <- list()
+
+for (strait_one in c("Singapore", "Johor")) {
+     
+for (kingdom_one in list(c("Bacteria", "Archaea"), "Eukaryota")){
+
+  otu_strait_one <- otu_strait %>% 
+    filter(strait == strait_one & kingdom %in% kingdom_one) %>% 
+    top_n(30, n_seq)
+
+  ps_heat <- ps_all %>% 
+    subset_samples(strait==strait_one) %>%
+    subset_taxa(kingdom %in% kingdom_one)
+  
+  otu_table_keep <- data.frame(otu_table(ps_heat)) %>% 
+    rownames_to_column("otu_id") %>% 
+    filter(otu_id %in% otu_strait_one$otu_id) %>% 
+    left_join(select(otu_strait_one, otu_id)) %>% 
+    column_to_rownames("otu_id")
+  
+  tax_table_keep <- data.frame(tax_table(ps_heat)) %>% 
+    rownames_to_column("otu_id") %>% 
+    filter(otu_id %in% otu_strait_one$otu_id) %>% 
+    left_join(select(otu_strait_one, otu_id, otu_label)) %>% 
+    column_to_rownames("otu_id")
+
+  OTU = otu_table(as.matrix(otu_table_keep), taxa_are_rows = TRUE)
+  TAX = tax_table(as.matrix(tax_table_keep))
+  samples = sample_data(ps_heat)
+  
+  ps_heat <- phyloseq(OTU, TAX, samples)    
+
+  print(ps_heat)
+
+  p <- plot_heatmap(ps_heat, method = "NMDS", distance = "bray", 
+               taxa.label = "otu_label",  taxa.order="supergroup",
+               sample.label = "sample_label", sample.order="sample_label",
+               low="beige", high="red", na.value="beige",trans = scales::log10_trans(), 
+               title=strait_one) +
+    theme(axis.text.y = element_text(size = 16, angle = 0, hjust = 0, vjust = 0.5)) +
+    theme(axis.text.x = element_text(size = 16)) +
+    theme(axis.title = element_text(size = 0)) +
+    theme(plot.title = element_text(size=22, hjust = 0.5)) +
+    xlab("Sample") + ylab("")
+
+  print(p)
+  if (kingdom_one=="Eukaryota") heat_euk[[strait_one]] <- p 
+  else heat_prok[[strait_one]] <- p
+
+}}
+
+
+   grid_fig_heat <-  cowplot::plot_grid(heat_prok[["Singapore"]],heat_prok[["Johor"]], align="hv",
+                                   # labels=c("A","B"),
+                                   ncol=1, nrow=2, label_size = 20)
+
+
+   ggsave("../fig/fig_heat_prok.png", grid_fig_heat, 
+          height = 20, width = 15, dpi = 300)
+
+   grid_fig_heat <-  cowplot::plot_grid(heat_euk[["Singapore"]],heat_euk[["Johor"]], align="hv",
+                                   # labels=c("A","B"),
+                                   ncol=1, nrow=2, label_size = 20)
+
+
+   ggsave("../fig/fig_heat_euk.png", grid_fig_heat, 
+          height = 20, width = 15, dpi = 300)
+
+```
+
+
+
 ## NMDS
 
 
@@ -811,7 +1043,7 @@ ps_do_nmds <- function(ps_list) {
       # Remove samples with no reads
       ps_nmds <- prune_samples(sample_sums(ps_nmds)>0, ps_nmds)
       
-      # Remove samples from Raffles
+      # Remove samples from Raffles and Johor
       ps_nmds <- subset_samples(ps_nmds, !(str_detect(strait, "Raffles Mari|Johor")))
       
       # Remove samples that caused problems (1= prok, 2=euk, 3=euk auto)
@@ -908,7 +1140,7 @@ ps_do_nmds <- function(ps_list) {
                                    labels = c("A", "B", "C", "D"),
                                    align="hv", label_size = 20)
    grid_fig
-   ggsave("../fig/Fig_NMDS-Singapore.png", grid_fig, height = 12, width = 18, dpi = 300)
+   # ggsave("../fig/Fig_NMDS-Singapore.png", grid_fig, height = 12, width = 18, dpi = 300)
 ```
 
 
@@ -947,4 +1179,96 @@ for (i in 1:3) {
 ```
 
 
+## Differential expression (DESeq2)
 
+Love, M.I., Huber, W. & Anders, S. 2014. Moderated estimation of fold change and  dispersion for RNA-seq data with DESeq2. Genome Biol. 15:550.
+
+* Follow: 
+    * https://joey711.github.io/phyloseq-extensions/DESeq2.html
+    * https://bioconductor.org/packages/devel/bioc/vignettes/phyloseq/inst/doc/phyloseq-mixture-models.html
+
+* Start from **raw counts** (not normalized) : `ps_all_raw `
+
+```{r}
+library("DESeq2")
+packageVersion("DESeq2")
+```
+
+
+
+Block 1 is need to avoid the following error
+> Error in estimateSizeFactorsForMatrix(counts(object), locfunc = locfunc, : every gene contains at least one zero, cannot compute log geometric means
+
+See: https://github.com/joey711/phyloseq/issues/387
+
+
+```{r, message=FALSE}
+ps <- ps_all_raw 
+ps <- subset_samples(ps, strait=="Singapore" & monsoon %in% c("NE", "SW"))
+
+ps
+
+diagdds = phyloseq_to_deseq2(ps, ~ monsoon)
+
+# ps <- subset_samples(ps, strait %in% c("Singapore","Johor"))
+# diagdds = phyloseq_to_deseq2(ps, ~ strait)
+
+# Block 1 Start
+# Estimate geometric mean with zeros
+
+gm_mean = function(x, na.rm=TRUE){
+  exp(sum(log(x[x > 0]), na.rm=na.rm) / length(x))
+}
+geoMeans = apply(counts(diagdds), 1, gm_mean)
+diagdds = estimateSizeFactors(diagdds, geoMeans = geoMeans)
+
+# Block 1 end
+
+diagdds = DESeq(diagdds, fitType="local")
+```
+
+
+
+```{r}
+res = results(diagdds, cooksCutoff = FALSE)
+alpha = 0.01
+sigtab = res[which(res$padj < alpha), ]
+sigtab = cbind(as(sigtab, "data.frame"), as(tax_table(ps)[rownames(sigtab), ], "matrix"))
+head(sigtab)
+```
+
+### FIG 
+
+```{r fig.height=14, fig.width=14}
+
+sigtab_plot <- sigtab %>% 
+  rownames_to_column(var = "otu_id") %>% 
+  top_n(-90, wt=otu_id) %>% 
+  mutate(label= case_when(
+         kingdom == "Eukaryota" ~ str_c(otu_id, class,species, sep="_"),
+         TRUE ~ str_c(otu_id, class,genus, sep="_")),
+         supergroup_label = str_c(str_sub(kingdom, 1,1), supergroup, sep="_")) %>% 
+  arrange(desc(otu_id)) %>% 
+  rowid_to_column()
+
+
+
+
+g <- ggplot(sigtab_plot, aes(x = reorder(label, log2FoldChange), y = log2FoldChange, color = kingdom, alpha=log(rowid))) +
+  theme_dviz_grid() + 
+  geom_point(size = 6) +
+  theme(axis.text.x = element_text(size = 16, angle = 0, hjust = 0.5, vjust = 0.5 ),
+        axis.text.y = element_text(size = 16, angle = 0, hjust = 0, vjust = 0.5 ),
+        legend.title = element_text(size = 24),
+        legend.text = element_text(size = 20)) +
+  guides(alpha = FALSE) +
+  ylab("log2 fold change - NE <--> SW") + xlab("ASV") +
+  scale_color_viridis_d(option = "C", name = "Kingdom") +
+  coord_flip()
+
+g
+
+ ggsave(filename="../fig/fig_DESeq2.png", g, 
+        height = 20, width = 20, dpi = 300)
+
+```
