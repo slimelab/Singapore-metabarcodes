@@ -82,7 +82,7 @@ The following editing has been done
 ```{r}
 # Read the OTU table
 
-  otu_table_final <- read_excel(otu_excel_file, sheet="ASV final")
+  otu_table_final <- read_excel(otu_excel_file, sheet="ASV")
 
 ```
 
@@ -238,7 +238,7 @@ Note the bootstrap threshold 90% for ASVs
 # Filtering
   ps_all_raw <- subset_samples(ps_all_raw, sequence_quality == "good")
   ps_all_raw <- subset_taxa(ps_all_raw,!(division %in% c("Metazoa")))
-  ps_all_raw <- subset_taxa(ps_all_raw,!(class %in% c("Chloroplast")))  
+  ps_all_raw <- subset_taxa(ps_all_raw,!(kingdom %in% c("Eukaryota_plastid")))  
 
 ```
 ## Break up into photosynthetic and non-photosynthetic 
@@ -936,6 +936,52 @@ All ASVs considered (not only abundant)
 
 ```
 
+### Syndiniales at order level
+All ASVs considered (not only abundant)
+
+```{r heatmap_syndiniales_order, fig.height=4, fig.width=10}
+
+  ps_heat <- subset_taxa(ps_euk, class %in% c("Syndiniales")) 
+  ps_heat <- subset_samples(ps_heat, !is.na(Salinity))
+  
+  ps_heat <- tax_glom(ps_heat,taxrank = "order")
+
+  p <- plot_heatmap(ps_heat, method = "NMDS", distance = "bray", 
+               taxa.label = "order",  taxa.order="order",
+               sample.label = "Salinity", sample.order="Salinity",
+               low="beige", high="red", na.value="beige",trans = scales::log_trans(10), 
+               title="Syndiniales in Singapore") +
+      facet_grid(~location, scales="free_x")
+  print(p)
+  
+  p <- plot_heatmap(ps_heat, method = "NMDS", distance = "bray", 
+               taxa.label = "order",  taxa.order="order",
+               sample.label = "Temperature", sample.order="Temperature",
+               low="beige", high="red", na.value="beige",trans = scales::log_trans(10), 
+               title="Syndiniales in Singapore") +
+      facet_grid(~location, scales="free_x")
+  print(p)
+```
+
+```{r heatmap_syndiniales_family, fig.height=10, fig.width=10}
+
+  ps_heat <- subset_taxa(ps_euk, class %in% c("Syndiniales")) 
+  ps_heat <- subset_samples(ps_heat, !is.na(Salinity))
+  
+  ps_heat <- tax_glom(ps_heat,taxrank = "family")
+
+  p <- plot_heatmap(ps_heat, method = "NMDS", distance = "bray", 
+               taxa.label = "family",  taxa.order="family",
+               sample.label = "Salinity", sample.order="Salinity",
+               low="beige", high="red", na.value="beige",trans = scales::log_trans(10), 
+               title="Syndiniales in Singapore")+
+      facet_grid(~location, scales="free_x")
+  print(p)
+  
+
+```
+
+
 
 ### FIG - Most abundant OTUs in Johor vs Singapre and Prokaryotes vs Eukaryotes
 
@@ -1272,3 +1318,26 @@ g
         height = 20, width = 20, dpi = 300)
 
 ```
+
+### Do a histogram plot for all ASV significantly different
+
+```{r fig.height=6, fig.width=6}
+  p <- list()
+  for (asv_one in sigtab_plot$otu_id){
+  ps_one <- prune_taxa(asv_one, ps)
+  p[[asv_one]] <- plot_bar(ps_one, x="sample_label", fill = "class") +
+       geom_bar(aes(color=class, fill=class), stat="identity", position="stack") +
+       ggtitle(asv_one)  +
+       theme(axis.text.y = element_text(size=10)) +
+       theme(axis.text.x = element_text(size=8, angle=0, hjust = 0.5)) +
+       coord_flip() +
+       scale_fill_viridis(discrete=TRUE) + scale_color_viridis(discrete=TRUE)
+  print(p[[asv_one]])
+  }
+
+  p_grid <- gridExtra::grid.arrange(grobs=p, nrow=18, ncol=4)
+  ggsave(filename="../fig/fig_DESeq2_grid.png", p_grid, 
+        height = 45, width = 20, dpi = 400)
+
+```
+
