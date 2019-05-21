@@ -7,12 +7,12 @@ Script and processed data for :
 * monsoon_qiime_script.sh : Qiime script to process raw data and do some analyses
 
 ### R directory
-* Metabarcoding_Singapore_phyloseq.Rmd : Script to produce phyloseq files and produce plots
+* Metabarcoding_Singapore_phyloseq.Rmd : Script to produce phyloseq files and produce plots ([HTML version of Rmd file](https://vaulot.github.io/metabarcoding/singapore/Metabarcoding_Singapore_phyloseq))
+
 * monsoonpaper_env_data.csv : environmental metadata
 * Singapore_metadata.xlsx : list of samples and of stations
 * Singapore ASV_table.xlsx : 
     * Sheet ASV finale: List of ASVs, taxonomic assignations, read number in each sample, and sequence
     * Sheet BLAST: Best BLAST for each eukaryotic ASV
 
-[HTML version of Rmd file](https://vaulot.github.io/metabarcoding/singapore/Metabarcoding_Singapore_phyloseq)
 
