@@ -684,8 +684,8 @@ ggsave("../fig/fig_treemap_separate.png", fig_grid_treemap_by_kingdom, height = 
 
 ```
 
-
-## 20 most abundant divisions
+## Bar plots
+### Bar plot 20 most abundant divisions
 * RM samples not considered
 
 ```{r fig.height=15, fig.width=15}
@@ -742,7 +742,7 @@ ggplot(long_division_top, aes(x=sample_label, y=n_seq_division/n_seq_station,
 
 
 
-## Bar plot of divisions per station
+### Bar plot of divisions per station
 
 
 Note: some stations are completely missing heterotrophs (Only Opistokonta)
@@ -761,7 +761,7 @@ for (i in 1:3) {
 }
 ```
 
-## Bar plot of class per station
+### Bar plot of class per station
 
 Only consider the abundant taxa
 
@@ -779,7 +779,8 @@ for (i in 1:3) {
 }
 ```
 
-## Compare by Straight, Site, Moonsoon (abundant OTUs only)
+## Synthetic comparisons
+### Compare by Straight, Site, Moonsoon (abundant OTUs only)
 
 ```{r bar_plot_factors, fig.height=4, fig.width=6, message=FALSE, warning=FALSE}
 for (factor in c("strait", "location", "monsoon")) {  
@@ -797,7 +798,7 @@ for (factor in c("strait", "location", "monsoon")) {
 }
 ```
 
-## Compare by Moonsoon in Singapore straight (abundant OTUs)
+### Compare by Moonsoon in Singapore straight (abundant OTUs)
 
 ```{r bar_plot_monsoon, fig.height=4, fig.width=6, message=FALSE, warning=FALSE}
 
@@ -815,8 +816,8 @@ for (factor in c("strait", "location", "monsoon")) {
  }
 ```
 
-
-## Time series (abundant OTUs) aggregated for Singapore strait only
+## Time series
+### Time series (abundant OTUs) aggregated for Singapore strait only
 
 ```{r bar_plot_date, fig.height=4, fig.width=6, message=FALSE, warning=FALSE}
 for (factor in c("date")) {  
@@ -835,7 +836,7 @@ for (factor in c("date")) {
 }
 ```
 
-## Time series (abundant OTUs) - Division level
+### Time series (abundant OTUs) - Division level
 
 ```{r bar_plot_date_division, fig.height=6, fig.width=12, message=FALSE, warning=FALSE}
  for (i in 1:3) {
@@ -854,7 +855,7 @@ for (factor in c("date")) {
 ```
 
 
-## Time series (abundant OTUs) - Genus level for Chlorophyta
+### Time series (abundant OTUs) - Genus level for Chlorophyta
 
 ```{r bar_plot_date_genus, fig.height=6, fig.width=12, message=FALSE, warning=FALSE}
  for (i in 3:3) {
@@ -1389,7 +1390,7 @@ g
   print(p[[asv_one]])
   }
 
-  p_grid <- gridExtra::grid.arrange(grobs=p, nrow=18, ncol=4)
+  p_grid <- gridExtra::grid.arrange(grobs=p, nrow=20, ncol=4)
   ggsave(filename="../fig/fig_DESeq2_grid.png", p_grid, 
         height = 45, width = 20, dpi = 400)
 
