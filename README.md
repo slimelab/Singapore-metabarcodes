@@ -13,3 +13,6 @@ Script and processed data for :
 * Singapore ASV_table.xlsx : 
     * Sheet ASV finale: List of ASVs, taxonomic assignations, read number in each sample, and sequence
     * Sheet BLAST: Best BLAST for each eukaryotic ASV
+
+[HTML version of Rmd file](https://vaulot.github.io/metabarcoding/singapore/Metabarcoding_Singapore_phyloseq)
+
