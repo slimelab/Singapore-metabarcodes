@@ -685,6 +685,60 @@ ggsave("../fig/fig_treemap_separate.png", fig_grid_treemap_by_kingdom, height = 
 ```
 
 
+## 20 most abundant divisions
+* RM samples not considered
+
+```{r fig.height=15, fig.width=15}
+division_top <- long_all %>% 
+  filter(!str_detect(location_label, "RM")) %>% 
+  group_by(kingdom, supergroup, division) %>% 
+  summarise(n_seq_division = sum(n_seq)) %>% 
+  arrange(-n_seq_division) 
+
+
+
+long_division_top <- long_all %>% 
+  filter(!str_detect(location_label, "RM")) %>% 
+  mutate(division = case_when(division %in% division_top$division[1:20] ~ division,
+                              TRUE ~ "Other")) %>% 
+  group_by(strait, sample_label, division) %>% 
+  summarise(n_seq_division = sum(n_seq)) 
+
+ seq_stations <-long_division_top %>% 
+   group_by(sample_label) %>% 
+   summarise(n_seq_station = sum(n_seq_division)) 
+ 
+ n_seq_station <- seq_stations$n_seq_station[1]
+ 
+# Set up the colors
+ 
+colours <- c("#771155", "#AA4488", "#CC99BB", "#114477", "#4477AA", "#77AADD", "#117777", "#44AAAA", "#77CCCC", "#117744", "#44AA77", "#88CCAA", "#777711", "#AAAA44", "#DDDD77", "#774411", "#AA7744", "#DDAA77", "#771122","#DD7788","#999099","#AA4455")
+
+colours_name <- t(lapply(colours, plotrix::color.id))
+
+#  Read the colors from Excel file
+
+top_division_colors.df <- read_excel(metadata_xlsx, sheet="colors", range="D1:F22")
+  
+top_division_colors <-structure(top_division_colors.df$color_name,.Names=top_division_colors.df$division) 
+
+
+ggplot(long_division_top, aes(x=sample_label, y=n_seq_division/n_seq_station, 
+                              fill=factor(division, levels=top_division_colors.df$division))) +
+  geom_col()+
+  theme_bw() +
+  theme(axis.text.y = element_text(size=10, hjust= 0, vjust=0.5)) +
+  theme(axis.text.x = element_text(angle=90, hjust = 0, vjust=0.5))  +
+  # scale_fill_viridis(discrete=TRUE) + 
+  scale_fill_manual(values = top_division_colors) +
+  scale_y_continuous(labels = scales::percent, expand = expand_scale()) +
+  theme(legend.position = "top", legend.box = "vertical") + 
+  guides(fill = guide_legend(title = "Division", title.position = "top", 
+        ncol = 5, nrow = 5, byrow = FALSE)) +
+  xlab("") + ylab("Proportion") +
+  facet_grid( ~ strait, scales="free_x", space="free_x")
+
+```
 
 
 
