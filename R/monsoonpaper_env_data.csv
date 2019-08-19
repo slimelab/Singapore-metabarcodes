@@ -1,4 +1,4 @@
-Sample,Day_number,Date,Location,Strait,Monsoon period,Rain7,Rain1,Chl,Temperature,Salinity,NOx,NO2 ,NO3,Phosphate,Silicate ,NH4,DIN,BAC
+Sample,Day_number,Date,Location,Strait,Monsoon period,Rain7,Rain1,Chl,Temperature,Salinity,NOx,NO2 ,NO3,Phosphate,Silicate ,NH4,DIN,PROK
 EC01,37,06-Feb-17,East Coast,Singapore ,NE,16.6,0.2,,27.93,30.7,1.36,0.187,1.256,0.046,4.706,0.756,2.116,1300000
 EC02,65,06-Mar-17,East Coast,Singapore ,NE,52.4,5.6,,28.11,31.69,1.344,0.07,1.274,0.048,3.049,0.378,1.722,1229450
 EC03,93,03-Apr-17,East Coast,Singapore ,IM-1,48.2,0.2,,29.56,31.93,1.571,0.357,1.214,0.161,2.6,2.071,3.642428571,1010000
