@@ -3,6 +3,7 @@
   library("phyloseq") 
   library("Biostrings")
   library("ShortRead") # to read fastq
+  library(plotrix) # For standard error function
   
   library("ggplot2")
   library("viridis")

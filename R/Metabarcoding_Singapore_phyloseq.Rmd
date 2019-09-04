@@ -51,24 +51,40 @@ This file defines all the necessary libraries and variables
 
 ```{r}
 # Read the sample and metadata tables
-  sample_table <- read_excel(metadata_xlsx, sheet="samples", range="A1:D89") 
+  sample_list <- read_excel(metadata_xlsx, sheet="sample_list", range="A1:D89") 
 
   metadata_table  <- read_csv(metadata_csv, na=c("ND", "")) %>% 
-    dplyr::rename(sample_code=Sample, day_number=Day_number, date=Date, 
-                  location=Location, monsoon=`Monsoon period`) %>% 
+    dplyr::rename(sample_code=Sample, 
+                  day_number=Day_number, date=Date, 
+                  location=Location, monsoon=`Monsoon period`,
+                  prok_ml = PROK) %>% 
     select(-Strait) %>% 
     mutate(date = lubridate::parse_date_time(date,"dmy"),
-           monsoon = forcats::fct_relevel(monsoon, "NE", "IM-1", "SW", "IM-2"))
+           monsoon = forcats::fct_relevel(monsoon, "NE", "IM-1", "SW", "IM-2"),
+           sample_number= str_extract(sample_code,"[0-9]+")) 
+  
+  fcm_table <- read_excel(metadata_xlsx, sheet="flow cytometry") %>% 
+    select(sample_code, syn_ml, phytopk_ml) %>% 
+    group_by(sample_code) %>% 
+    summarise_all(list(~mean(.), ~std.error(.)), na.rm=TRUE)
+  
+  fcm_not_used <- fcm_table %>% 
+    left_join(metadata_table)
   
   station_table  <- read_excel(metadata_xlsx, sheet="stations", na=c("ND", ""))
+  
 
-  sample_table <- sample_table %>% 
+  sample_table <- sample_list %>% 
     left_join(metadata_table) %>%
     left_join(station_table) %>% 
+    left_join(fcm_table) %>% 
     mutate(sample_label = str_c(location_label,
                                 date,
                                 monsoon, 
-                                sep="_"))
+                                sep="_")) %>% 
+    arrange(sample_number, location_label)
+  
+  # openxlsx::write.xlsx(sample_table, "sample_table.xlsx")
 
 ```
 ### OTU table
@@ -1290,7 +1306,7 @@ ps_do_nmds <- function(ps_list) {
       
       # Fit environmental parameters
        env_var <- sample_variables(ps_nmds)
-       env_matrix <- get_variable(ps_nmds,c("Chl", "Temperature", "Salinity", "Phosphate", "Silicate", "DIN", "BAC") )
+       env_matrix <- get_variable(ps_nmds,c("Chl", "Temperature", "Salinity", "Phosphate", "Silicate", "DIN", "prok_ml") )
        env_fit <- vegan::envfit(singa.ord, env = env_matrix, perm = 999, na.rm=TRUE)
        env_arrows <- data.frame(env_fit$vectors$arrows*sqrt(env_fit$vectors$r)) %>% rownames_to_column(var="parameter")
       
