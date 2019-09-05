@@ -10,7 +10,7 @@ Script and processed data for :
 * metadata.txt: sample list
 * metadata_volatility.txt : data for volatilty analysis
 
-### R directory
+### R
 * Metabarcoding_Singapore_phyloseq.Rmd : Script to produce phyloseq files and produce plots ([HTML version of Rmd file](https://vaulot.github.io/metabarcoding/singapore/Metabarcoding_Singapore_phyloseq))
 * monsoonpaper_env_data.csv : environmental metadata
 * Singapore_metadata.xlsx : list of samples and of stations with environmental data
